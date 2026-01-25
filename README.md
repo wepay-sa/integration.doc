@@ -96,9 +96,6 @@ After obtaining the access token, use it to create a payment contract.
     "amount": 1000,
     "description": "Extenal Iphone mobile",
     "notes": "notes for mobile",
-    "feePayer": "Buyer",
-    "PaymentMethod": 1,
-    "initiatorRole": "Seller",
     "reference": "12321",
     "metaData": {
         "metadata1": "1",
@@ -619,66 +616,64 @@ sequenceDiagram
 }
 ```
 ## Enumerations
+# Enums Documentation
 
-`ContractStatus`
+## ContractStatus
 
-| Value     | Description                        | Notes / Example          |
-| --------- | ---------------------------------- | ------------------------ |
-| Pending   | Contract created but not yet paid  | Default after creation   |
-| Active    | Contract is active and in progress | After successful payment |
-| Completed | Contract completed successfully    | All milestones completed |
-| Cancelled | Contract was cancelled             | By system or user        |
-| Failed    | Contract payment failed            | Payment not completed    |
+| Value | Name | Description |
+|---:|---|---|
+| 1 | Draft | Contract created but not yet progressed. |
+| 2 | Pending | Awaiting counterparty action or response. |
+| 3 | Accepted | Counterparty has accepted the contract terms. |
+| 4 | Approved | Contract approved (e.g., by platform/admin). |
+| 5 | Rejected | Contract was rejected by a party or reviewer. |
+| 6 | Expired | Contract validity period has expired. |
+| 7 | Completed | All contract obligations fulfilled. |
+| 8 | Cancelled | Contract cancelled before completion. |
+| 9 | WaitingForBankPayment | Awaiting an external bank payment to arrive. |
+| 10 | Escrow | Funds are held in escrow for the contract. |
+| 11 | Dispute | A dispute has been raised on the contract. |
+| 12 | Released | Escrowed funds have been released. |
+| 13 | Refunded | Full refund has been processed. |
+| 14 | PartiallyRefunded | A partial refund has been processed. |
+| 15 | Terminated | Contract forcibly terminated (end-of-life). |
 
+## ContractServiceType
 
-`ContractServiceType`
+| Value | Name | Description |
+|---:|---|---|
+| 1 | Product | A tangible or digital product (goods). |
+| 2 | Service | A service (time, labor, or expertise). |
 
-| Value   | Description                          | Notes / Example       |
-| ------- | ------------------------------------ | --------------------- |
-| Product | Physical or digital product contract | Example: Product sale |
-| Service | Service-based contract               | Example: Consulting   |
+## PricingRole
 
+| Value | Name | Description |
+|---:|---|---|
+| 1 | Buyer | The buyer (payer) in the pricing flow. |
+| 2 | Seller | The seller (payee) in the pricing flow. |
+| 3 | SplitEqually | Costs split equally between parties. |
+| 4 | ThirdParty | A third party is responsible for the charge. |
 
-`PricingRole`
+## PricingLineType
 
-| Value  | Description                  | Notes / Example                |
-| ------ | ---------------------------- | ------------------------------ |
-| Buyer  | Buyer pays the pricing item  | Example: Buyer pays escrow fee |
-| Seller | Seller pays the pricing item | Example: Seller commission     |
+| Value | Name | Description |
+|---:|---|---|
+| 1 | ContractAmount | Primary contract amount (base price). |
+| 2 | EscrowFee | Platform escrow fee charged on the contract. |
+| 3 | EscrowFeeTax | Tax applied to the escrow fee. |
+| 4 | ExternalPlatformFee | Fee charged by an external platform. |
+| 5 | ExternalPlatformFeeTax | Tax applied to the external platform fee. |
+| 100 | NetEscrowAmountToSeller | Derived informational line (not a charge); net amount to seller. |
 
+## FeePayer
 
-`PricingLineType`
-
-| Value      | Description                 | Notes / Example |
-| ---------- | --------------------------- | --------------- |
-| EscrowFee  | Escrow service fee          | Platform fee    |
-| ServiceFee | Service processing fee      | Optional        |
-| Tax        | Tax applied to the contract | VAT / Sales tax |
-| Discount   | Discount applied            | Negative amount |
-
-
-`FeePayer`
-
-| Value  | Description          | Notes / Example  |
-| ------ | -------------------- | ---------------- |
-| Buyer  | Buyer pays all fees  | Common case      |
-| Seller | Seller pays all fees | Alternative case |
-
-`InitiatorRole`
-
-| Value  | Description                  | Notes / Example |
-| ------ | ---------------------------- | --------------- |
-| Buyer  | Contract initiated by buyer  |                 |
-| Seller | Contract initiated by seller |                 |
-
-
-`PaymentMethod`
-
-| Value | Description  | Notes / Example     |
-| ----- | ------------ | ------------------- |
-| 1     | Card payment | Credit / Debit card |
-| 2     | Wallet       | Platform wallet     |
-| 3     | BankTransfer | Bank transfer       |
+| Value | Name | Description |
+|---:|---|---|
+| 1 | Buyer | Buyer pays the fee. |
+| 2 | Seller | Seller pays the fee. |
+| 3 | SplitEqually | Fee split equally between buyer and seller. |
+| 4 | ThirdParty | A third party covers the fee. |
+| 5 | PerContract | Fee applied per contract (billing unit). |
 
 
 # Check out page getting started
