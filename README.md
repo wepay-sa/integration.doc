@@ -702,10 +702,6 @@ Before starting, ensure you have:
 This is the first screen you'll see when accessing the payment link. It displays your order summary and payment details.
 the amounts that you will see is what the buyer should pay, if the agreed terms is the buyer will pay Wepay fees, then this screen will display Wepay fees Amounts
 
-![fP9soCu.png](https://iili.io/fP9soCu.png)
-
-Here is the clean **Markdown (MD) version**, structured and readable, ready for API / product documentation or email sharing.
-
 ---
 
 ## 1. Order Summary Card
