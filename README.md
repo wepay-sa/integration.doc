@@ -43,7 +43,7 @@ Before making any API calls, you need to authenticate and obtain an access token
 **Where to get Client ID and Client Secret:**
 
 - These credentials are generated when you create a business account on the WePay platform
-- Contact WePay support or access your business dashboard to obtain these credentials
+- Contact WePay support to obtain these credentials
 
 ### Example Request (cURL)
 
@@ -122,15 +122,12 @@ After obtaining the access token, use it to create a payment contract.
 | Field Name | Type | Description | Required / Notes / Example |
 | --- | --- | --- | --- |
 | title | string | Contract title | **Required**<br/>Example: "Sell a property111" |
-| contractServiceType | string | Type of service for the contract | **Required**<br/>Example: "Product" |
+| contractServiceType | string | Type of service for the contract | **Required**<br/>Expected Values: "Product", "Service" |
 | BuyerParty | object (Party) | Buyer information | **Required** |
 | SellerParty | object (Party) | Seller information | **Required** |
 | amount | number | Contract amount | **Required**<br/>Example: 1000 |
 | description | string | Contract description | Optional<br/>Example: "Extenal Iphone mobile" |
 | notes | string | Additional notes | Optional<br/>Example: "notes for mobile" |
-| feePayer | string | Party responsible for fees | **Required**<br/>Example: "Buyer" |
-| PaymentMethod | integer | Payment method identifier | **Required**<br/>Example: 1 |
-| initiatorRole | string | Role that initiated the contract | **Required**<br/>Example: "Seller" |
 | reference | string | External reference identifier | Optional<br/>Example: "12321" |
 | metaData | object (MetaData) | Custom key-value metadata | Optional |
 | callbackUrl | string | Callback URL for contract events | Optional<br/>Example: "<http://localhost:3000/callback>" |
@@ -140,8 +137,8 @@ After obtaining the access token, use it to create a payment contract.
 | Field Name | Type | Description | Required / Notes / Example |
 | --- | --- | --- | --- |
 | phoneNumber | string | Party phone number (including country code) | **Required**<br/>Example: "966583944460" |
-| firstName | string | First name | **Required**Example: "Buyer" |
-| lastName | string | Last name | OptionalExample: "Name aa" |
+| firstName | string | First name | **Required**<br/>Example: "Ahmad" |
+| lastName | string | Last name | **Required**<br/>Example: "Ali" |
 
 **MetaData**
 
@@ -183,8 +180,8 @@ After obtaining the access token, use it to create a payment contract.
 
 | Field Name | Type | Description | Required / Notes / Example |
 | --- | --- | --- | --- |
-| firstName | string | First name | **Required**<br/>Example: "Buyer" |
-| lastName | string | Last name | Optional<br/>Example: "Name" |
+| firstName | string | First name | **Required**<br/>Example: "Ahmad" |
+| lastName | string | Last name | **Required**<br/>Example: "Ali" |
 | phoneNumber | string | Phone number including country code | **Required**<br/>Example: "966583944460" |
 
 **ContractMetaData**
@@ -203,7 +200,7 @@ After obtaining the access token, use it to create a payment contract.
 | name | string | Milestone name | **Required**<br><br>Example: "Delivery" |
 | description | string | Milestone description | Optional |
 | amount | number | Milestone amount | **Required**<br><br>Example: 500 |
-| dueDate | string (date-time) | Milestone due date | **Required**<br><br>Example: 2024-02-01T00:00:00Z |
+| dueDate | string (date-time) | Milestone due date (UTC) | **Required**<br><br>Example: 2024-02-01T00:00:00Z |
 
 **ExternalPriceLineItem**
 
@@ -236,9 +233,6 @@ curl -X POST "https://api.wepay.com.sa/apps/api/contracts" \
     "amount": 600,
     "description": "TEST External Iphone mobile",
     "notes": "notes for mobile",
-    "feePayer": "Buyer",
-    "PaymentMethod": 1,
-    "initiatorRole": "Seller",
     "callbackurl": "http://localhost:3000/en/payment-success"
   }'
 
@@ -325,12 +319,12 @@ curl -X POST "https://api.wepay.com.sa/apps/api/contracts" \
 ## Get Contract
 in case you want to get previously created contract by contract id, you can use the following endpoint 
 
-**Endpoint** `GET https://localhost:5002/apps/api/contracts/CNT-2601-00100002`
+**Endpoint** `GET {{baseUrl}}/apps/api/contracts/CNT-2601-00100002`
 Curl:
 ```
 ```bash
 curl -X 'GET' \
-  'https://localhost:5002/apps/api/contracts/CNT-2601-00100002' \
+  '{{baseUrl}}/apps/api/contracts/CNT-2601-00100002' \
   -H 'accept: application/json'
 ```
 **Response**
@@ -435,17 +429,14 @@ curl -X 'GET' \
 | amount              | number                                   | Total contract amount            | **Required**               |
 | status              | string (ContractStatus)                  | Current contract status          | **Required**               |
 | contractServiceType | string (ContractServiceType)             | Contract service type            | **Required**               |
-| feePayer            | string                                   | Party responsible for fees       | **Required**               |
-| paymentMethod       | integer                                  | Payment method identifier        | **Required**               |
-| initiatorRole       | string                                   | Role that initiated the contract | **Required**               |
 | reference           | string                                   | External reference               | Optional                   |
-| buyer               | object (ContractPartyResponse)           | Buyer party details              | **Required**               |
-| seller              | object (ContractPartyResponse)           | Seller party details             | **Required**               |
+| buyerParty               | object (ContractPartyResponse)           | Buyer party details              | **Required**               |
+| sellerParty              | object (ContractPartyResponse)           | Seller party details             | **Required**               |
 | metaData            | object (ContractMetaData)                | Custom metadata                  | Optional                   |
 | milestones          | array of ContractMilestoneResponse       | Contract milestones              | **Required**               |
 | pricingLineItems    | array of ContractPricingLineItemResponse | Pricing breakdown                | **Required**               |
-| createdDate         | string (date-time)                       | Contract creation date (UTC)     | **Required**               |
-| updatedDate         | string (date-time)                       | Last update date (UTC)           | **Required**               |
+| createdDate         | string (date-time) (UTC)                      | Contract creation date (UTC)     | **Required**               |
+| updatedDate         | string (date-time) (UTC)                      | Last update date (UTC)           | **Required**               |
 
 `ContractPartyResponse`
 | Field Name  | Type   | Description                    | Required / Notes / Example |
@@ -471,7 +462,7 @@ curl -X 'GET' \
 | description | string             | Milestone description | Optional                   |
 | amount      | number             | Milestone amount      | **Required**               |
 | status      | string             | Milestone status      | **Required**               |
-| dueDate     | string (date-time) | Milestone due date    | **Required**               |
+| dueDate     | string (date-time (UTC)) | Milestone due date    | **Required**               |
 
 `ContractPricingLineItemResponse`
 
@@ -786,7 +777,7 @@ The system determines which steps you need to complete:
 | --- | ---: | --- |
 | First Name | ✅ | <ul><li>Required field (cannot be empty)</li><li>Maximum 100 characters</li></ul> |
 | Last Name | ✅ | <ul><li>Required field (cannot be empty)</li><li>Maximum 100 characters</li></ul> |
-| ID Number / Iqama | ✅ | <ul><li>Required field (cannot be empty)</li><li>Must be exactly 10 digits</li><li>Must start with either 1 or 2</li></ul> |
+| National / Iqama ID | ✅ | <ul><li>Required field (cannot be empty)</li><li>Must be exactly 10 digits</li><li>Must start with either 1 or 2</li></ul> |
 
 
 ## Step 2: Income Information
@@ -1023,12 +1014,12 @@ The platform supports two languages:
 
 **Solutions**:
 
-- Wait for the 2-minute countdown timer to finish
+- Wait for the 2-minute countdown timer to finish (Make sure your National/Iqama ID is correct )
 - Click "Resend" after the timer expires
 - Verify your phone number is registered with Absher
 - Check your SMS inbox and spam folder
 - Ensure your phone has signal
-- Contact Absher support if the issue persists
+- Contact support if the issue persists
 
 ### 4. OTP Verification Fails
 
@@ -1153,7 +1144,7 @@ If you encounter issues not covered here:
 ## Validation Rules Summary
 
 - **Personal Info**: All fields required, ID must be valid format
-- **Income Info**: All questions must be answered (or skipped)
+- **Income Info**: All questions must be answered
 - **Absher**: OTP must be exactly 6 digits, must match sent code
 
 # Security and Privacy
@@ -1167,7 +1158,6 @@ If you encounter issues not covered here:
 ## Escrow Protection
 
 - Funds are held securely until work completion
-- Both parties can raise disputes if needed
 - Payment is only released upon your approval
 
 ## Best Practices
