@@ -5,14 +5,15 @@
 This section is for developers integrating WePay Escrow Payment Services into their applications.
 
 ## Version
-current version: v1.1.0 <br/>
-last updated date: 01/02/2026
+current version: v1.2.0 <br/>
+last updated date: 10/03/2026
 
 ## Change Log
 
 
 | Version        | What to Include              |
 | -------------- | ---------------------------- |
+| Minor (v1.2.0) | Add milestone to contract APIs |
 | Minor (v1.1.0) | Webhook notifications support |
 | Major (v1.0.0) | checkout on contract level public              |
 
@@ -229,6 +230,27 @@ Milestones | list of objects (Milestone) | Seperate contract into multiple miles
 | dueDate | string (date-time) | Milestone due date (UTC) | **Required**<br><br>Example: 2024-02-01T00:00:00Z |
 | pricingLineItems | array of ExternalPriceLineItem | Pricing breakdown items | **Required** |
 
+### Milestone Validation Rules
+
+| Rule | Requirement |
+|------|-------------|
+| Total amounts | Must equal contract amount |
+| Milestone amount | Must be > 0 |
+| DueDate format | ISO 8601 UTC (with Z suffix) |
+| Name | Required field |
+| Description | Optional field |
+
+### Important: Milestone Amount Calculation
+
+**Request `Amount`** = Base contract amount  
+**Response `Amount`** = Base + all fees + taxes
+
+**Example**:
+- Request: 600 SAR (base)
+- Response: 686.25 SAR (includes escrow fees, platform fees, VAT)
+
+See `PricingLineItems` array for full breakdown.
+
 **ExternalPriceLineItem**
 
 | Field Name | Type | Description | Required / Notes / Example |
@@ -259,7 +281,7 @@ curl -X POST "https://api.wepay.com.sa/apps/api/contracts" \
       "firstName": "Seller",
       "lastName": ""
     },
-    "amount": 600,
+    "amount": 1000,
     "description": "TEST External Iphone mobile",
     "notes": "notes for mobile",
     "callbackurl": "http://localhost:3000/en/payment-success",
@@ -278,8 +300,18 @@ curl -X POST "https://api.wepay.com.sa/apps/api/contracts" \
       }
     ]
   }'
-
 ```
+
+**Note**: API uses camelCase for JSON responses:
+- Request: `"Milestones"` (PascalCase - C# convention)
+- Response: `"milestones"` (camelCase - JSON convention)
+
+**DueDate Format**: Always use UTC timezone
+- Example: `"2026-12-20T10:00:00.000Z"`
+- System converts to Saudi time (UTC+3) for display
+
+**Note**: Milestones are read-only after contract creation.
+
 ### Example Response
 
 ```
