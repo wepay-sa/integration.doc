@@ -929,6 +929,101 @@ sequenceDiagram
 	]
 }
 ```
+# Create User
+`POST apps/api/user`
+**Headers**:
+- Authorization: Bearer {access_token}  Replace {access_token} with the token obtained from login (Step 1).
+- Content-Type: application/json
+
+```
+{
+    "phoneNumber" : "966583944460",
+    "firstName" : "Name",
+    "lastName" : "Family",
+    "nationalId": "2211111122",
+    "iBAN": "8995422365998855663",
+    "bIC": "8888",
+    "dateOfBirth": "2000-01-01T10:27:39.889Z"
+}
+```
+### Field Descriptions
+
+| Field Name | Type | Description | Required / Notes / Example |
+| --- | --- | --- | --- |
+| phoneNumber | string | User phone number | **Required** |
+| firstName | string | User first name | **Required** |
+| lastName | string | User last name | **Required** |
+| nationalId | string | User national id | Optional |
+| iBAN | string | User bank account iban | Optional |
+| bIC | string | User bank account bic code | Optional |
+| dateOfBirth | datetime | Additional notes | Optional |
+
+### Example Request (cURL)
+```
+curl --location 'https://api.wepay.com.sa/apps/api/user' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+--data '{
+    "phoneNumber" : "966583944460",
+    "firstName" : "Name",
+    "lastName" : "Family",
+    "nationalId": "2211111122",
+    "iBAN": "8995422365998855663",
+    "bIC": "8888",
+    "dateOfBirth": "2000-01-01T10:27:39.889Z"
+}'
+```
+
+### Example Response
+```
+{
+	"data":
+	{
+		"platformRefId": "USR_123",
+		"kycUrl": "https://integration.wepay-sa.com/kyc?token=encodedToken"
+	},
+	"message": "User created successfully.",
+	"status": 200,
+	"validationErrors": []
+}
+```
+
+# Get User Onboarding Status
+`GET apps/api/user/onboarding`
+**Headers**:
+- Authorization: Bearer {access_token}  Replace {access_token} with the token obtained from login (Step 1).
+- Content-Type: application/json
+
+### Field Descriptions
+
+| Field Name | Type | Description | Required / Notes / Example |
+| --- | --- | --- | --- |
+| phoneNumber | string | User phone number | **Required** |
+
+### Example Request (cURL)
+```
+curl --location 'https://api.wepay.com.sa/apps/api/user/onboarding?phoneNumber=966583944450' \
+--header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+--data ''
+```
+
+### Example Response
+
+```
+{
+	"data":
+	{
+		"onboardingCompleted": false,
+		"isVerified": false,
+		"kycCompleted": false,
+		"onboardingUrl": "https://integration.wepay-sa.com/kyc?token=encodedToken"
+	},
+	"message": "Success",
+	"status": 200,
+	"validationErrors": []
+}
+```
+
 # Enums Documentation
 
 ## ContractStatus
