@@ -544,11 +544,13 @@ curl -X 'GET' \
 		"status": "pending",
 		"contractServiceType": "product",
 		"buyerParty": {
+			"platformRefId": "USR_123",
 			"firstName": "Buyer",
 			"lastName": "Name aa",
 			"phoneNumber": "966583944460"
 		},
 		"sellerParty": {
+			"platformRefId": "USR_456",
 			"firstName": "Seller",
 			"lastName": "",
 			"phoneNumber": "966583944461"
@@ -738,17 +740,18 @@ curl -X 'GET' \
 | status              | string (ContractStatus)                  | Current contract status          | **Required**               |
 | contractServiceType | string (ContractServiceType)             | Contract service type            | **Required**               |
 | reference           | string                                   | External reference               | Optional                   |
-| buyerParty               | object (ContractPartyResponse)           | Buyer party details              | **Required**               |
-| sellerParty              | object (ContractPartyResponse)           | Seller party details             | **Required**               |
+| buyerParty               | object (ExternalContractParty)           | Buyer party details              | **Required**               |
+| sellerParty              | object (ExternalContractParty)           | Seller party details             | **Required**               |
 | metaData            | object (ContractMetaData)                | Custom metadata                  | Optional                   |
 | milestones          | array of ContractMilestoneResponse       | Contract milestones              | **Required**               |
 | pricingLineItems    | array of PricingLineItemResponse | Pricing breakdown                | **Required**               |
 | createdDate         | string (date-time) (UTC)                      | Contract creation date (UTC)     | **Required**               |
 | updatedDate         | string (date-time) (UTC)                      | Last update date (UTC)           | **Required**               |
 
-`ContractPartyResponse`
+`ExternalContractParty`
 | Field Name  | Type   | Description                    | Required / Notes / Example |
 | ----------- | ------ | ------------------------------ | -------------------------- |
+| platformRefId | string | User identifier in wepay 	| **Required** 				 |
 | firstName   | string | First name                     | **Required**               |
 | lastName    | string | Last name                      | Optional                   |
 | phoneNumber | string | Phone number with country code | **Required**               |
@@ -807,7 +810,7 @@ After receiving the response, extract the `checkoutUrl` from `data.checkoutUrl` 
 **HTML Link:**
 
 ```
-<a href="https://checkout.wepay.com.sa?contractId=CNT-2601-00100068&token=...">Pay with WePay</a>
+<a href="https://checkout.wepay.com.sa?token=...">Pay with WePay</a>
 ```
 
 **JavaScript Redirect:**
@@ -994,7 +997,6 @@ sequenceDiagram
 - The link will include:
 
 - A **token** (for authentication)
-- A **contract ID** (identifying your specific contract)
 
 - Click the link or paste it into your browser
 - The platform will automatically detect your preferred language (English or Arabic)
