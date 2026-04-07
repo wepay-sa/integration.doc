@@ -98,14 +98,24 @@ After obtaining the access token, use it to create a payment contract.
     "title": "Sell a property111",
     "contractServiceType": "Product",
     "BuyerParty": {
+		"platformRefId" : "USR_abc001",
         "phoneNumber": "966583944460",
         "firstName": "Buyer",
         "lastName": "Name aa"
     },
     "SellerParty": {
+		"platformRefId" : "USR_abc002",
         "phoneNumber": "966583944461",
         "firstName": "Seller",
-        "lastName": ""
+        "lastName": "",
+		"KYC": 
+	    {
+	        "identity": "5232210232",
+	        "iBANNumber": "8995422365998855663",
+	        "bICCode": "8888",
+	        "dateOfBirth": "2000-01-01T10:27:39.889Z",
+	        "kycCompleted": false
+	    }
     },
     "amount": 1000,
     "description": "Extenal Iphone mobile",
@@ -154,9 +164,23 @@ Milestones | list of objects (Milestone) | Seperate contract into multiple miles
 
 | Field Name | Type | Description | Required / Notes / Example |
 | --- | --- | --- | --- |
+| platformRefId | string | User identifier in wepay system | Optional |
 | phoneNumber | string | Party phone number (including country code) | **Required**<br/>Example: "966583944460" |
 | firstName | string | First name | **Required**<br/>Example: "Ahmad" |
 | lastName | string | Last name | **Required**<br/>Example: "Ali" |
+
+**Party (SellerParty)**
+| Field Name | Type | Description | Required / Notes / Example |
+| --- | --- | --- | --- |
+| kyc | object | kyc data for seller | Required |
+
+**Kyc object**
+| Field Name | Type | Description | Required / Notes / Example |
+| --- | --- | --- | --- |
+| identity | string | Seller national id | Required |
+| iBANNumber | string | Seller bank account IBAN | Required |
+| bICCode | string | Seller bank account BIC | Required |
+| dateOfBirth | datetime | Seller date of birth | Optional |
 
 **MetaData**
 
@@ -193,7 +217,7 @@ Milestones | list of objects (Milestone) | Seperate contract into multiple miles
 | contractId | string | Unique external contract identifier | **Required**<br><br>Example: "c8f1a3c2-9d12-4c8b-9f0a-123456789abc" |
 | status | string (ContractStatus) | Current contract status | **Required**<br><br>Example: "Pending" |
 | contractServiceType | string (ContractServiceType) | Type of contract service | **Required**<br><br>Example: "Product" |
-| checkoutUrl | string | Checkout URL for completing payment | **Required**<br><br>Example: "<https://checkout.example.com/contract/123>" |
+| checkoutUrl | string | Checkout URL for completing payment | **Required**<br><br>Example: "<https://integration.wepay-sa.com/checkout?token=encodedToken>" <br /> The **token** is valid for 10 minutes. If expired, you need to request a new one by calling `/apps/api/contracts/checkout` |
 | buyerParty | object (ExternalContractParty) | Buyer party details | **Required** |
 | sellerParty | object (ExternalContractParty) | Seller party details | **Required** |
 | reference | string | External reference identifier | Optional Nullable |
@@ -206,6 +230,7 @@ Milestones | list of objects (Milestone) | Seperate contract into multiple miles
 
 | Field Name | Type | Description | Required / Notes / Example |
 | --- | --- | --- | --- |
+| platformRefId | string | User identifier in wepay | **Required** |
 | firstName | string | First name | **Required**<br/>Example: "Ahmad" |
 | lastName | string | Last name | **Required**<br/>Example: "Ali" |
 | phoneNumber | string | Phone number including country code | **Required**<br/>Example: "966583944460" |
@@ -320,13 +345,15 @@ curl -X POST "https://api.wepay.com.sa/apps/api/contracts" \
 		"contractId": "CNT-2601-00100003",
 		"status": "pending",
 		"contractServiceType": "product",
-		"checkoutUrl": "<https://checkout.welink-sa.com?contractId=CNT-2601-00100003&token=RSGFF38PXVO>....",
+		"checkoutUrl": "<https://checkout.welink-sa.com?token=RSGFF38PXVO>....",
 		"buyerParty": {
+			"platformRefId": "USR_20260405152053_5487",
 			"firstName": "Buyer",
 			"lastName": "Name aa",
 			"phoneNumber": "966583944460"
 		},
 		"sellerParty": {
+			"platformRefId": "USR_20260405151029_7034",
 			"firstName": "Seller",
 			"lastName": "",
 			"phoneNumber": "966583944461"
@@ -517,11 +544,13 @@ curl -X 'GET' \
 		"status": "pending",
 		"contractServiceType": "product",
 		"buyerParty": {
+			"platformRefId": "USR_123",
 			"firstName": "Buyer",
 			"lastName": "Name aa",
 			"phoneNumber": "966583944460"
 		},
 		"sellerParty": {
+			"platformRefId": "USR_456",
 			"firstName": "Seller",
 			"lastName": "",
 			"phoneNumber": "966583944461"
@@ -711,17 +740,18 @@ curl -X 'GET' \
 | status              | string (ContractStatus)                  | Current contract status          | **Required**               |
 | contractServiceType | string (ContractServiceType)             | Contract service type            | **Required**               |
 | reference           | string                                   | External reference               | Optional                   |
-| buyerParty               | object (ContractPartyResponse)           | Buyer party details              | **Required**               |
-| sellerParty              | object (ContractPartyResponse)           | Seller party details             | **Required**               |
+| buyerParty               | object (ExternalContractParty)           | Buyer party details              | **Required**               |
+| sellerParty              | object (ExternalContractParty)           | Seller party details             | **Required**               |
 | metaData            | object (ContractMetaData)                | Custom metadata                  | Optional                   |
 | milestones          | array of ContractMilestoneResponse       | Contract milestones              | **Required**               |
 | pricingLineItems    | array of PricingLineItemResponse | Pricing breakdown                | **Required**               |
 | createdDate         | string (date-time) (UTC)                      | Contract creation date (UTC)     | **Required**               |
 | updatedDate         | string (date-time) (UTC)                      | Last update date (UTC)           | **Required**               |
 
-`ContractPartyResponse`
+`ExternalContractParty`
 | Field Name  | Type   | Description                    | Required / Notes / Example |
 | ----------- | ------ | ------------------------------ | -------------------------- |
+| platformRefId | string | User identifier in wepay 	| **Required** 				 |
 | firstName   | string | First name                     | **Required**               |
 | lastName    | string | Last name                      | Optional                   |
 | phoneNumber | string | Phone number with country code | **Required**               |
@@ -780,7 +810,7 @@ After receiving the response, extract the `checkoutUrl` from `data.checkoutUrl` 
 **HTML Link:**
 
 ```
-<a href="https://checkout.wepay.com.sa?contractId=CNT-2601-00100068&token=...">Pay with WePay</a>
+<a href="https://checkout.wepay.com.sa?token=...">Pay with WePay</a>
 ```
 
 **JavaScript Redirect:**
@@ -899,6 +929,147 @@ sequenceDiagram
 	]
 }
 ```
+
+## Step 4: Request a New Checkout Token (If Expired)
+If the original checkout token has expired, you must request a new checkout token before proceeding with the payment.
+
+`POST apps/api/contracts/checkout`
+**Headers**:
+- Authorization: Bearer {access_token}  Replace {access_token} with the token obtained from login (Step 1).
+- Content-Type: application/json
+
+```
+{
+    "buyerPhoneNumber": "966583944460",
+    "externalContractId": "CNT-2604-00100000"
+}
+```
+### Field Descriptions
+
+| Field Name | Type | Description | Required / Notes / Example |
+| --- | --- | --- | --- |
+| phoneNumber | string | User phone number | **Required** |
+| externalContractId | string | Contract id | **Required** |
+
+### Example Request (cURL)
+```
+curl --location 'https://api.wepay.com.sa/apps/api/contracts/checkout' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+--data '{
+    "buyerPhoneNumber": "966583944460",
+    "externalContractId": "CNT-2604-00100000"
+}'
+```
+
+### Example Response
+```
+{
+	"data":
+	{
+		"checkoutUrl": "https://integration.wepay-sa.com/checkout?token=encodedToken"
+	},
+	"message": "ContractCheckoutStartedSuccessfully",
+	"status": 200,
+	"validationErrors": []
+}
+```
+
+# Create User
+`POST apps/api/user`
+**Headers**:
+- Authorization: Bearer {access_token}  Replace {access_token} with the token obtained from login (Step 1).
+- Content-Type: application/json
+
+```
+{
+    "phoneNumber" : "966583944460",
+    "firstName" : "Name",
+    "lastName" : "Family",
+    "nationalId": "2211111122",
+    "iBAN": "8995422365998855663",
+    "bIC": "8888",
+    "dateOfBirth": "2000-01-01T10:27:39.889Z"
+}
+```
+### Field Descriptions
+
+| Field Name | Type | Description | Required / Notes / Example |
+| --- | --- | --- | --- |
+| phoneNumber | string | User phone number | **Required** |
+| firstName | string | User first name | **Required** |
+| lastName | string | User last name | **Required** |
+| nationalId | string | User national id | Optional |
+| iBAN | string | User bank account iban | Optional |
+| bIC | string | User bank account bic code | Optional |
+| dateOfBirth | datetime | Additional notes | Optional |
+
+### Example Request (cURL)
+```
+curl --location 'https://api.wepay.com.sa/apps/api/user' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+--data '{
+    "phoneNumber" : "966583944460",
+    "firstName" : "Name",
+    "lastName" : "Family",
+    "nationalId": "2211111122",
+    "iBAN": "8995422365998855663",
+    "bIC": "8888",
+    "dateOfBirth": "2000-01-01T10:27:39.889Z"
+}'
+```
+
+### Example Response
+```
+{
+	"data":
+	{
+		"platformRefId": "USR_123",
+		"kycUrl": "https://integration.wepay-sa.com/kyc?token=encodedToken"
+	},
+	"message": "User created successfully.",
+	"status": 200,
+	"validationErrors": []
+}
+```
+
+# Get User Onboarding Status
+`GET apps/api/user/onboarding`
+**Headers**:
+- Authorization: Bearer {access_token}  Replace {access_token} with the token obtained from login (Step 1).
+- Content-Type: application/json
+
+### Field Descriptions
+
+| Field Name | Type | Description | Required / Notes / Example |
+| --- | --- | --- | --- |
+| phoneNumber | string | User phone number | **Required** |
+
+### Example Request (cURL)
+```
+curl --location 'https://api.wepay.com.sa/apps/api/user/onboarding?phoneNumber=966583944450' \
+--header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+--data ''
+```
+
+### Example Response
+
+```
+{
+	"data":
+	{
+		"onboardingCompleted": false,
+		"isVerified": false,
+		"kycCompleted": false,
+		"onboardingUrl": "https://integration.wepay-sa.com/kyc?token=encodedToken"
+	},
+	"message": "Success",
+	"status": 200,
+	"validationErrors": []
+}
+```
+
 # Enums Documentation
 
 ## ContractStatus
@@ -967,7 +1138,6 @@ sequenceDiagram
 - The link will include:
 
 - A **token** (for authentication)
-- A **contract ID** (identifying your specific contract)
 
 - Click the link or paste it into your browser
 - The platform will automatically detect your preferred language (English or Arabic)
