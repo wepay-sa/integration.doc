@@ -5,14 +5,15 @@
 This section is for developers integrating WePay Escrow Payment Services into their applications.
 
 ## Version
-current version: v1.2.0 <br/>
-last updated date: 10/03/2026
+current version: v1.3.0 <br/>
+last updated date: 09/04/2026
 
 ## Change Log
 
 
 | Version        | What to Include              |
 | -------------- | ---------------------------- |
+| Minor (v1.3.0) | KYC integration			 |
 | Minor (v1.2.0) | Add milestone to contract APIs |
 | Minor (v1.1.0) | Webhook notifications support |
 | Major (v1.0.0) | checkout on contract level public              |
@@ -36,7 +37,8 @@ Before making any API calls, you need to authenticate and obtain an access token
 
 ### Endpoint
 
-`POST /connect/token`  
+`POST /connect/token`
+
 **Headers**:
 - content-type: application/x-www-form-urlencoded
 - grant_type: client_credentials
@@ -89,8 +91,10 @@ After obtaining the access token, use it to create a payment contract.
 `POST /apps/api/contracts`  
 
 **Headers**
- - Authorization: Bearer {access_token}  Replace {access_token} with the token obtained from Step 1.
- - Content-Type: application/json   
+- Authorization: Bearer {access_token}  
+	Replace {access_token} with the token obtained from login [(Step 1)](#Step-1-Obtain-Access-Token).
+
+- Content-Type: application/json   
 
 ### Request Body
 ```
@@ -113,8 +117,7 @@ After obtaining the access token, use it to create a payment contract.
 	        "identity": "5232210232",
 	        "iBANNumber": "8995422365998855663",
 	        "bICCode": "8888",
-	        "dateOfBirth": "2000-01-01T10:27:39.889Z",
-	        "kycCompleted": false
+	        "dateOfBirth": "2000-01-01T10:27:39.889Z"
 	    }
     },
     "amount": 1000,
@@ -164,10 +167,20 @@ Milestones | list of objects (Milestone) | Seperate contract into multiple miles
 
 | Field Name | Type | Description | Required / Notes / Example |
 | --- | --- | --- | --- |
-| platformRefId | string | User identifier in wepay system | Optional |
+| platformRefId* | string | User identifier in wepay system | Optional |
 | phoneNumber | string | Party phone number (including country code) | **Required**<br/>Example: "966583944460" |
 | firstName | string | First name | **Required**<br/>Example: "Ahmad" |
 | lastName | string | Last name | **Required**<br/>Example: "Ali" |
+
+*platformRefId is optional in the request. It is a unique identifier across all parties in the system. It can be used to link the party to an existing user in your system or to store a reference for future lookups.
+
+To get platformRefId, you can call the [User Onboarding API](#Get-User-Onboarding-Status) to retrieve a user and obtain his platformRefId, if exists.
+
+You can also choose to not provide platformRefId in the request, and just provide the party's phone number and name and WePay will try to find an existing user with the same phone number. If the user is a new one, it will be created automatically in the system and a new platformRefId will be generated for him, and will be returned in the response. You can then store this platformRefId in your system for future reference.
+
+If you want to create a user in Wepay and get the platformRefId before creating a contract, you can use the [User Creation API](#Create-User) to create a new user and get his platformRefId, then use this platformRefId in the contract creation request.
+
+**Note:** On contract creation, the seller receives an SMS with a [KYC](#KYC-Flow) link to verify his identity.
 
 **Party (SellerParty)**
 | Field Name | Type | Description | Required / Notes / Example |
@@ -217,7 +230,7 @@ Milestones | list of objects (Milestone) | Seperate contract into multiple miles
 | contractId | string | Unique external contract identifier | **Required**<br><br>Example: "c8f1a3c2-9d12-4c8b-9f0a-123456789abc" |
 | status | string (ContractStatus) | Current contract status | **Required**<br><br>Example: "Pending" |
 | contractServiceType | string (ContractServiceType) | Type of contract service | **Required**<br><br>Example: "Product" |
-| checkoutUrl | string | Checkout URL for completing payment | **Required**<br><br>Example: "<https://integration.wepay-sa.com/checkout?token=encodedToken>" <br /> The **token** is valid for 10 minutes. If expired, you need to request a new one by calling `/apps/api/contracts/checkout` |
+| checkoutUrl | string | Checkout URL for completing payment | **Required**<br><br>Example: "<https://integration.wepay-sa.com/checkout?token=encodedToken>" <br /> The **token** is valid for 10 minutes. If expired, you need to [request a new one](#Step-4-Request-a-New-Checkout-Token-If-Expired) by calling `/apps/api/contracts/checkout` |
 | buyerParty | object (ExternalContractParty) | Buyer party details | **Required** |
 | sellerParty | object (ExternalContractParty) | Seller party details | **Required** |
 | reference | string | External reference identifier | Optional Nullable |
@@ -740,8 +753,8 @@ curl -X 'GET' \
 | status              | string (ContractStatus)                  | Current contract status          | **Required**               |
 | contractServiceType | string (ContractServiceType)             | Contract service type            | **Required**               |
 | reference           | string                                   | External reference               | Optional                   |
-| buyerParty               | object (ExternalContractParty)           | Buyer party details              | **Required**               |
-| sellerParty              | object (ExternalContractParty)           | Seller party details             | **Required**               |
+| buyerParty		  | object (ExternalContractParty)           | Buyer party details              | **Required**               |
+| sellerParty         | object (ExternalContractParty)           | Seller party details             | **Required**               |
 | metaData            | object (ContractMetaData)                | Custom metadata                  | Optional                   |
 | milestones          | array of ContractMilestoneResponse       | Contract milestones              | **Required**               |
 | pricingLineItems    | array of PricingLineItemResponse | Pricing breakdown                | **Required**               |
@@ -799,8 +812,6 @@ curl -X 'GET' \
 | 500         | Internal server error           |
 
 
-
-
 ## Step 3: Redirect Users to Checkout
 
 After receiving the response, extract the `checkoutUrl` from `data.checkoutUrl` and redirect your users to this URL.
@@ -855,13 +866,47 @@ checkout_url = response['data']['checkoutUrl']
 return redirect(checkout_url)
 ```
 
+## KYC Flow
+On third party credentials creation, `externalHandleKyc` should be set:
+if `true`: KYC is handled by the third party. Your system should have already collected the required KYC information from the user. In this case, the user will be redirected directly to the checkout page without any additional KYC steps on WePay platform.
+if `false`: KYC is handled by WePay, and the user will be redirected to a KYC page, where KYC information will be collected. After successful KYC completion, the user will be redirected to the checkout page.
+
+`apps/api/user/onboarding?phoneNumber=5555555` get user status and return a KYC url
+
+| Field Name  | Type   | Description                    | Required / Notes / Example |
+| ----------- | ------ | ------------------------------ | -------------------------- |
+| phoneNumber | string | User phone number 				| **Required** 				 |
+
+
+### Example Response
+The response will include the `onboardingUrl` where the user can complete their KYC if `externalHandleKyc` is set to false. 
+And `isVerified` indicates whether the user is absher verified, and `kycCompleted` indicates whether the KYC process is completed for the user. 
+It also includes flags indicating whether onboarding is completed, where the user is absherVerified and KYC is completed.
+```
+{
+    "data": {
+		"platformRefId": "USR_123456"
+        "onboardingUrl": "https://integration.welink-sa.com/kyc?isVerified=False&isKycCompleted=False&token=encryptedToken",
+        "onboardingCompleted": false,
+        "isVerified": false,
+        "kycCompleted": false
+    },
+    "message": "OnboardingRetrievedSuccessfully",
+    "status": 200,
+    "validationErrors": []
+}
+```
+
+**Note:** On [contract creation](#Step-2-Create-a-Contract), the seller receives an SMS with a KYC link to verify his identity.
+
+
 ## Complete Integration Flow
 
 1. Your backend calls POST /connect/token.   Receive access_token.  
 1. Your backend calls POST /apps/api/contracts with access_token.  
-1.  Receive checkoutUrl in response.   Redirect user to checkoutUrl.  
+1. Receive checkoutUrl in response.   Redirect user to checkoutUrl.  
 1. User completes payment on WePay platform.   User is redirected to
-1.  your callbackurl.   Handle payment success/failure on your callback
+1. Your callbackurl.   Handle payment success/failure on your callback
     page.
 
 ```mermaid
@@ -934,8 +979,11 @@ sequenceDiagram
 If the original checkout token has expired, you must request a new checkout token before proceeding with the payment.
 
 `POST apps/api/contracts/checkout`
+
 **Headers**:
-- Authorization: Bearer {access_token}  Replace {access_token} with the token obtained from login (Step 1).
+- Authorization: Bearer {access_token}  
+	Replace {access_token} with the token obtained from login [(Step 1)](#Step-1-Obtain-Access-Token).
+
 - Content-Type: application/json
 
 ```
@@ -977,8 +1025,11 @@ curl --location 'https://api.wepay.com.sa/apps/api/contracts/checkout' \
 
 # Create User
 `POST apps/api/user`
+
 **Headers**:
-- Authorization: Bearer {access_token}  Replace {access_token} with the token obtained from login (Step 1).
+- Authorization: Bearer {access_token}  
+	Replace {access_token} with the token obtained from login [(Step 1)](#Step-1-Obtain-Access-Token).
+
 - Content-Type: application/json
 
 ```
@@ -1036,8 +1087,11 @@ curl --location 'https://api.wepay.com.sa/apps/api/user' \
 
 # Get User Onboarding Status
 `GET apps/api/user/onboarding`
+
 **Headers**:
-- Authorization: Bearer {access_token}  Replace {access_token} with the token obtained from login (Step 1).
+- Authorization: Bearer {access_token}  
+	Replace {access_token} with the token obtained from login [(Step 1)](#Step-1-Obtain-Access-Token).
+
 - Content-Type: application/json
 
 ### Field Descriptions
