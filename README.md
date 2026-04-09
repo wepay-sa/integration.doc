@@ -102,16 +102,16 @@ After obtaining the access token, use it to create a payment contract.
     "title": "Sell a property111",
     "contractServiceType": "Product",
     "BuyerParty": {
-		"platformRefId" : "USR_abc001",
-        "phoneNumber": "966583944460",
-        "firstName": "Buyer",
-        "lastName": "Name aa"
+		"platformRefId" : "USR_abc001",	//Optional.
+        "phoneNumber": "966583944460",	//Required if platformRefId is not provided
+        "firstName": "Buyer",			//Required if platformRefId is not provided
+        "lastName": "Name"				//Required if platformRefId is not provided
     },
     "SellerParty": {
-		"platformRefId" : "USR_abc002",
-        "phoneNumber": "966583944461",
-        "firstName": "Seller",
-        "lastName": "",
+		"platformRefId" : "USR_abc002",	//Optional.
+        "phoneNumber": "966583944461",	//Required if platformRefId is not provided
+        "firstName": "Seller",			//Required if platformRefId is not provided
+        "lastName": "",					//Required if platformRefId is not provided
 		"KYC": 
 	    {
 	        "identity": "5232210232",
@@ -168,15 +168,15 @@ Milestones | list of objects (Milestone) | Seperate contract into multiple miles
 | Field Name | Type | Description | Required / Notes / Example |
 | --- | --- | --- | --- |
 | platformRefId* | string | User identifier in wepay system | Optional |
-| phoneNumber | string | Party phone number (including country code) | **Required**<br/>Example: "966583944460" |
-| firstName | string | First name | **Required**<br/>Example: "Ahmad" |
-| lastName | string | Last name | **Required**<br/>Example: "Ali" |
+| phoneNumber | string | Party phone number (including country code) | **Required if platformRefId is not provided**<br/>Example: "966583944460" |
+| firstName | string | First name | **Required if platformRefId is not provided**<br/>Example: "Ahmad" |
+| lastName | string | Last name | **Required if platformRefId is not provided**<br/>Example: "Ali" |
 
 *platformRefId is optional in the request. It is a unique identifier across all parties in the system. It can be used to link the party to an existing user in your system or to store a reference for future lookups.
 
 To get platformRefId, you can call the [User Onboarding API](#Get-User-Onboarding-Status) to retrieve a user and obtain his platformRefId, if exists.
 
-You can also choose to not provide platformRefId in the request, and just provide the party's phone number and name and WePay will try to find an existing user with the same phone number. If the user is a new one, it will be created automatically in the system and a new platformRefId will be generated for him, and will be returned in the response. You can then store this platformRefId in your system for future reference.
+You can also choose to not provide platformRefId in the request, or just provide the party's phone number and name and WePay will try to find an existing user with the same phone number. If the user is a new one, it will be created automatically in the system and a new platformRefId will be generated for him, and will be returned in the response. You can then store this platformRefId in your system for future reference.
 
 If you want to create a user in Wepay and get the platformRefId before creating a contract, you can use the [User Creation API](#Create-User) to create a new user and get his platformRefId, then use this platformRefId in the contract creation request.
 
@@ -867,9 +867,9 @@ return redirect(checkout_url)
 ```
 
 ## KYC Flow
-On third party credentials creation, `externalHandleKyc` should be set:
-if `true`: KYC is handled by the third party. Your system should have already collected the required KYC information from the user. In this case, the user will be redirected directly to the checkout page without any additional KYC steps on WePay platform.
-if `false`: KYC is handled by WePay, and the user will be redirected to a KYC page, where KYC information will be collected. After successful KYC completion, the user will be redirected to the checkout page.
+
+You can find the user onboarding status and KYC url by calling the following API with the user's phone number. This API can be used to check if the user is verified and if not, to get the KYC url to complete the verification process.
+Seller receives an SMS with a KYC link to verify his identity on contract creation, but you can also proactively check the user's onboarding status and get the KYC url by calling the following API:
 
 `apps/api/user/onboarding?phoneNumber=5555555` get user status and return a KYC url
 
