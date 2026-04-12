@@ -6,7 +6,7 @@ This section is for developers integrating WePay Escrow Payment Services into th
 
 ## Version
 current version: v1.3.0 <br/>
-last updated date: 09/04/2026
+last updated date: 30/04/2026
 
 ## Change Log
 
@@ -111,14 +111,7 @@ After obtaining the access token, use it to create a payment contract.
 		"platformRefId" : "USR_abc002",	//Optional.
         "phoneNumber": "966583944461",	//Required if platformRefId is not provided
         "firstName": "Seller",			//Required if platformRefId is not provided
-        "lastName": "",					//Required if platformRefId is not provided
-		"KYC": 
-	    {
-	        "identity": "5232210232",
-	        "iBANNumber": "8995422365998855663",
-	        "bICCode": "8888",
-	        "dateOfBirth": "2000-01-01T10:27:39.889Z"
-	    }
+        "lastName": ""					//Required if platformRefId is not provided
     },
     "amount": 1000,
     "description": "Extenal Iphone mobile",
@@ -180,21 +173,6 @@ You can also choose to not provide platformRefId in the request, or just provide
 
 If you want to create a user in Wepay and get the platformRefId before creating a contract, you can use the [User Creation API](#Create-User) to create a new user and get his platformRefId, then use this platformRefId in the contract creation request.
 
-**Note:** On contract creation, the seller receives an SMS with a [KYC](#KYC-Flow) link to verify his identity.
-
-**Party (SellerParty)**
-| Field Name | Type | Description | Required / Notes / Example |
-| --- | --- | --- | --- |
-| kyc | object | kyc data for seller | Required |
-
-**Kyc object**
-| Field Name | Type | Description | Required / Notes / Example |
-| --- | --- | --- | --- |
-| identity | string | Seller national id | Required |
-| iBANNumber | string | Seller bank account IBAN | Required |
-| bICCode | string | Seller bank account BIC | Required |
-| dateOfBirth | datetime | Seller date of birth | Optional |
-
 **MetaData**
 
 | Field Name | Type | Description | Required / Notes / Example |
@@ -230,7 +208,7 @@ If you want to create a user in Wepay and get the platformRefId before creating 
 | contractId | string | Unique external contract identifier | **Required**<br><br>Example: "c8f1a3c2-9d12-4c8b-9f0a-123456789abc" |
 | status | string (ContractStatus) | Current contract status | **Required**<br><br>Example: "Pending" |
 | contractServiceType | string (ContractServiceType) | Type of contract service | **Required**<br><br>Example: "Product" |
-| checkoutUrl | string | Checkout URL for completing payment | **Required**<br><br>Example: "<https://integration.wepay-sa.com/checkout?token=encodedToken>" <br /> The **token** is valid for 10 minutes. If expired, you need to [request a new one](#Step-4-Request-a-New-Checkout-Token-If-Expired) by calling `/apps/api/contracts/checkout` |
+| checkout | object | Contains Checkout URL for completing payment | **Required**<br><br>Example: "<https://integration.wepay-sa.com/checkout?token=encodedToken>" <br /> The **token** is valid for 10 minutes. If expired, you need to [request a new one](#Step-4-Request-a-New-Checkout-Token-If-Expired) by calling `/apps/api/contracts/checkout` |
 | buyerParty | object (ExternalContractParty) | Buyer party details | **Required** |
 | sellerParty | object (ExternalContractParty) | Seller party details | **Required** |
 | reference | string | External reference identifier | Optional Nullable |
@@ -238,6 +216,14 @@ If you want to create a user in Wepay and get the platformRefId before creating 
 | milestones | array of Milestone | Contract milestones | **Required** |
 | pricingLineItems | array of ExternalPriceLineItem | Pricing breakdown items | **Required** |
 | createdDate | string (date-time) | Contract creation timestamp (UTC) | **Required**<br><br>Example: 2024-01-15T10:30:00Z |
+
+**Checkout**
+
+| Field Name | Type		| Description | Required / Notes / Example |
+| ---		 | ---		| ---	| --- |
+| Url		 | string	| Checkout URL for completing payment | Example: "<https://integration.wepay-sa.com/checkout?token=encodedToken>"  |
+| Token		 | string	| Encoded token |	 |
+| ExpiresAt  | string (date-time) | Token expiration timestamp (UTC) | Example: "2024-06-30T12:00:00Z" |
 
 **ExternalContractParty**
 
@@ -358,7 +344,12 @@ curl -X POST "https://api.wepay.com.sa/apps/api/contracts" \
 		"contractId": "CNT-2601-00100003",
 		"status": "pending",
 		"contractServiceType": "product",
-		"checkoutUrl": "<https://checkout.welink-sa.com?token=RSGFF38PXVO>....",
+		"checkout": 
+		{
+			"url": "<https://checkout.welink-sa.com?token=RSGFF38PXVO>....",
+			"token": "RSGFF38PXVO....",
+			"expiresAt": "2026-01-25T10:38:10.4874015Z"
+		},
 		"buyerParty": {
 			"platformRefId": "USR_20260405152053_5487",
 			"firstName": "Buyer",
@@ -814,7 +805,7 @@ curl -X 'GET' \
 
 ## Step 3: Redirect Users to Checkout
 
-After receiving the response, extract the `checkoutUrl` from `data.checkoutUrl` and redirect your users to this URL.
+After receiving the response, extract the `url` from `data.checkout.url` and redirect your users to this URL.
 
 ### Implementation Examples
 
@@ -827,14 +818,14 @@ After receiving the response, extract the `checkoutUrl` from `data.checkoutUrl` 
 **JavaScript Redirect:**
 ```
 // After receiving the API response  
-const checkoutUrl = response.data.checkoutUrl;  
+const checkoutUrl = response.data.checkout.url;  
 window.location.href = checkoutUrl;
 ```
 
 **React/Next.js:**
 ```
 // After receiving the API response  
-const checkoutUrl = response.data.checkoutUrl;  
+const checkoutUrl = response.data.checkout.url;  
 <Link href={checkoutUrl}>Pay with WePay</Link>  
   
 // Or redirect programmatically  
@@ -845,7 +836,7 @@ router.push(checkoutUrl);
 
 ```
 // After receiving the API response  
-$checkoutUrl = $response['data']['checkoutUrl'];  
+$checkoutUrl = $response['data']['checkout']['url'];  
 header("Location: " . $checkoutUrl);  
 exit;
 ```
@@ -857,18 +848,19 @@ exit;
 
 # Flask  
 from flask import redirect  
-checkout_url = response['data']['checkoutUrl']  
+checkout_url = response['data']['checkout']['url']  
 return redirect(checkout_url)  
   
 # Django  
 from django.shortcuts import redirect  
-checkout_url = response['data']['checkoutUrl']  
+checkout_url = response['data']['checkout']['url']  
 return redirect(checkout_url)
 ```
 
 ## KYC Flow
 
-You can find the user onboarding status and KYC url by calling the following API with the user's phone number. This API can be used to check if the user is verified and if not, to get the KYC url to complete the verification process.
+You can find the user onboarding status and KYC url by calling the following API with the user's phone number.
+This API can be used to check if the user is verified and if not, to get the KYC url to complete the verification process.
 Seller receives an SMS with a KYC link to verify his identity on contract creation, but you can also proactively check the user's onboarding status and get the KYC url by calling the following API:
 
 `apps/api/user/onboarding?phoneNumber=5555555` get user status and return a KYC url
@@ -879,17 +871,24 @@ Seller receives an SMS with a KYC link to verify his identity on contract creati
 
 
 ### Example Response
-The response will include the `onboardingUrl` where the user can complete their KYC if `externalHandleKyc` is set to false. 
-And `isVerified` indicates whether the user is absher verified, and `kycCompleted` indicates whether the KYC process is completed for the user. 
+The response will include the `onboarding` object which has `url` where the user can complete their KYC if `externalHandleKyc` is set to false. 
+And `isVerified` indicates whether the user is absher verified, and `kycCompleted` indicates whether the KYC process is completed for the user.
+`isBankAccountReady` indicates whether the user needs to add bank account details or not.
 It also includes flags indicating whether onboarding is completed, where the user is absherVerified and KYC is completed.
 ```
 {
     "data": {
 		"platformRefId": "USR_123456"
-        "onboardingUrl": "https://integration.welink-sa.com/kyc?isVerified=False&isKycCompleted=False&token=encryptedToken",
+        "onboarding":
+		{
+			"token": "encryptedToken",
+			"url": "https://integration.welink-sa.com/kyc?isVerified=False&isKycCompleted=False&token=encryptedToken",
+			"expiresAt": "2024-06-30T12:00:00Z"
+		}
         "onboardingCompleted": false,
         "isVerified": false,
-        "kycCompleted": false
+        "kycCompleted": false,
+		"isBankAccountReady": false
     },
     "message": "OnboardingRetrievedSuccessfully",
     "status": 200,
@@ -897,8 +896,37 @@ It also includes flags indicating whether onboarding is completed, where the use
 }
 ```
 
-**Note:** On [contract creation](#Step-2-Create-a-Contract), the seller receives an SMS with a KYC link to verify his identity.
+## Release Contract Funds
 
+Before releasing the funds, make sure that the contract status is `escrowed` and seller has successfully completed his KYC info and is verified user.
+
+If you are not sure of user's status, you can check it by calling the [Get User Onboarding Status API](#KYC-Flow) with the user's phone number to ensure that the seller is verified and has completed the KYC process.
+
+To release the funds for a specific contract/milestone, you can use the following API endpoint.
+
+`apps/api/contracts/release`
+
+| Field Name  | Type   | Description                    | Required / Notes / Example |
+| ----------- | ------ | ------------------------------ | -------------------------- |
+| contractId  | string | Contract id	 				| **Required** 				 |
+| milestoneId | string | Milestone id	 				| Optional 				     |
+
+
+### Example Response
+The response will include the transactionId and the released amount.
+
+```
+{
+    "data": {
+		"transactionId": 123
+        "amount": 1000.00,
+        "contractId": "CNT-2604-00100002"
+    },
+    "message": "ExternalContractReleasedSuccessfully",
+    "status": 200,
+    "validationErrors": []
+}
+```
 
 ## Complete Integration Flow
 
@@ -906,7 +934,7 @@ It also includes flags indicating whether onboarding is completed, where the use
 1. Your backend calls POST /apps/api/contracts with access_token.  
 1. Receive checkoutUrl in response.   Redirect user to checkoutUrl.  
 1. User completes payment on WePay platform.   User is redirected to
-1. Your callbackurl.   Handle payment success/failure on your callback
+1. Your callbackurl. Handle payment success/failure on your callback
     page.
 
 ```mermaid
@@ -991,6 +1019,7 @@ If the original checkout token has expired, you must request a new checkout toke
     "buyerPhoneNumber": "966583944460",
     "externalContractId": "CNT-2604-00100000"
 }
+
 ```
 ### Field Descriptions
 
@@ -1015,7 +1044,12 @@ curl --location 'https://api.wepay.com.sa/apps/api/contracts/checkout' \
 {
 	"data":
 	{
-		"checkoutUrl": "https://integration.wepay-sa.com/checkout?token=encodedToken"
+		"checkout":
+		{
+			"token": "encodedToken",
+			"url": "https://integration.wepay-sa.com/checkout?token=encodedToken",
+			"expiresAt": "2024-06-30T12:00:00Z"
+		}
 	},
 	"message": "ContractCheckoutStartedSuccessfully",
 	"status": 200,
@@ -1036,13 +1070,10 @@ curl --location 'https://api.wepay.com.sa/apps/api/contracts/checkout' \
 {
     "phoneNumber" : "966583944460",
     "firstName" : "Name",
-    "lastName" : "Family",
-    "nationalId": "2211111122",
-    "iBAN": "8995422365998855663",
-    "bIC": "8888",
-    "dateOfBirth": "2000-01-01T10:27:39.889Z"
+    "lastName" : "Family"
 }
 ```
+
 ### Field Descriptions
 
 | Field Name | Type | Description | Required / Notes / Example |
@@ -1050,12 +1081,9 @@ curl --location 'https://api.wepay.com.sa/apps/api/contracts/checkout' \
 | phoneNumber | string | User phone number | **Required** |
 | firstName | string | User first name | **Required** |
 | lastName | string | User last name | **Required** |
-| nationalId | string | User national id | Optional |
-| iBAN | string | User bank account iban | Optional |
-| bIC | string | User bank account bic code | Optional |
-| dateOfBirth | datetime | Additional notes | Optional |
 
 ### Example Request (cURL)
+
 ```
 curl --location 'https://api.wepay.com.sa/apps/api/user' \
 --header 'Content-Type: application/json' \
@@ -1063,11 +1091,7 @@ curl --location 'https://api.wepay.com.sa/apps/api/user' \
 --data '{
     "phoneNumber" : "966583944460",
     "firstName" : "Name",
-    "lastName" : "Family",
-    "nationalId": "2211111122",
-    "iBAN": "8995422365998855663",
-    "bIC": "8888",
-    "dateOfBirth": "2000-01-01T10:27:39.889Z"
+    "lastName" : "Family"
 }'
 ```
 
@@ -1077,7 +1101,12 @@ curl --location 'https://api.wepay.com.sa/apps/api/user' \
 	"data":
 	{
 		"platformRefId": "USR_123",
-		"kycUrl": "https://integration.wepay-sa.com/kyc?token=encodedToken"
+		"kyc":
+		{
+			"url": "https://integration.wepay-sa.com/kyc?token=encodedToken",
+			"token": "encodedToken",
+			"expiresAt": "2024-06-30T12:00:00Z"		
+		}
 	},
 	"message": "User created successfully.",
 	"status": 200,
@@ -1086,6 +1115,7 @@ curl --location 'https://api.wepay.com.sa/apps/api/user' \
 ```
 
 # Get User Onboarding Status
+
 `GET apps/api/user/onboarding`
 
 **Headers**:
@@ -1113,10 +1143,17 @@ curl --location 'https://api.wepay.com.sa/apps/api/user/onboarding?phoneNumber=9
 {
 	"data":
 	{
+		"platformRefId": "USR_123",
 		"onboardingCompleted": false,
 		"isVerified": false,
 		"kycCompleted": false,
-		"onboardingUrl": "https://integration.wepay-sa.com/kyc?token=encodedToken"
+		"isBankAccountReady": true,
+		"onboarding":
+		{		
+			"token": "encoded token",
+			"url": "https://integration.wepay-sa.com/kyc?token=encodedToken",
+			"expiresAt": "2024-06-30T12:00:00Z"
+		}
 	},
 	"message": "Success",
 	"status": 200,
@@ -1264,6 +1301,7 @@ The system determines which steps you need to complete:
 - **Personal Info Step**: Appears if KYC is not Completed.
 - **Income Info Step**: Appears if KYC is not Completed.
 - **Absher Step**: Appears if is not Verified with Absher yet.
+- **Bank Account Step**: Appears if bank account is required but not ready yet.
 
 **Note**: Steps are skipped if you've already completed them in a previous session.
 
