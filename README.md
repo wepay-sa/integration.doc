@@ -5,14 +5,15 @@
 This section is for developers integrating WePay Escrow Payment Services into their applications.
 
 ## Version
-current version: v1.3.0 <br/>
-last updated date: 09/04/2026
+current version: v1.4.0 <br/>
+last updated date: 14/04/2026
 
 ## Change Log
 
 
 | Version        | What to Include              |
 | -------------- | ---------------------------- |
+| Minor (v1.4.0) | Refund APIs: full and partial refund at contract and milestone level; new ContractStatus / MilestoneStatus values; refund webhook events |
 | Minor (v1.3.0) | KYC integration			 |
 | Minor (v1.2.0) | Add milestone to contract APIs |
 | Minor (v1.1.0) | Webhook notifications support |
@@ -1085,6 +1086,385 @@ curl --location 'https://api.wepay.com.sa/apps/api/user' \
 }
 ```
 
+# Refund Contract Funds
+
+After a contract has reached the `Escrow` status (funds collected from the buyer), or a `Dispute` has been raised, you can return funds to the buyer using the refund APIs.
+
+WePay supports four refund operations:
+
+| Scope | Type | Endpoint |
+|-------|------|----------|
+| Whole contract | Full refund | `POST /apps/api/contracts/{externalContractId}/refund` |
+| Whole contract | Partial refund | `POST /apps/api/contracts/{externalContractId}/partial-refund` |
+| Single milestone | Full refund | `POST /apps/api/contracts/{externalContractId}/milestones/{milestoneId}/refund` |
+| Single milestone | Partial refund | `POST /apps/api/contracts/{externalContractId}/milestones/{milestoneId}/partial-refund` |
+
+**Behavior summary**
+
+- **Full refund**: returns the entire escrowed principal to the buyer. WePay platform fees and taxes are retained.
+- **Partial refund**: returns a portion of the escrowed principal to the buyer; the remaining portion is released to the seller (net of the proportional fees due on the released amount).
+- All four endpoints transition the contract (and the milestone, when applicable) into an *in‑progress* status first. The refund is then executed asynchronously by WePay operations against the bank rails. A webhook is fired both when the refund is **initiated** and when it **succeeds** — see [Webhook Notifications](webhook.md).
+- Refund operations are **idempotent** by intent: while a non‑cancelled refund of the same type already exists for the same target (contract or milestone), a new refund request will be rejected.
+
+**Preconditions**
+
+| Scope | Required contract status | Required milestone status |
+|-------|--------------------------|---------------------------|
+| Contract refund (full / partial) | `Escrow` or `Dispute` | — |
+| Milestone refund (full / partial) | Any (handled per milestone) | `Escrow` |
+
+> **Note:** `BuyerIban` must be a valid Saudi IBAN (`SA` followed by 22 digits). The `BuyerName` is the account holder name as registered with the bank — it is verified against the IBAN by the banking provider.
+
+---
+
+## Full Refund — Contract
+
+Refunds the **entire** escrowed contract principal to the buyer.
+
+### Endpoint
+
+`POST /apps/api/contracts/{externalContractId}/refund`
+
+**Path parameters**
+
+| Field | Type | Description | Required / Notes / Example |
+|---|---|---|---|
+| externalContractId | string | The external contract identifier | **Required**<br/>Example: `CNT-2604-00100002` |
+
+**Headers**
+- Authorization: Bearer {access_token}
+- Content-Type: application/json
+
+### Request Body
+```json
+{
+    "reason": "Order cancelled by buyer; goods never shipped.",
+    "buyerIban": "SA0380000000608010167519",
+    "buyerName": "Ahmad Ali"
+}
+```
+
+### Field Descriptions
+
+| Field Name | Type | Description | Required / Notes / Example |
+|---|---|---|---|
+| reason | string | Mandatory reason for the refund (kept for audit trail) | **Required**<br/>Max 500 chars |
+| buyerIban | string | Buyer's Saudi IBAN that will receive the refunded amount | **Required**<br/>Format: `SA` + 22 digits<br/>Max 50 chars |
+| buyerName | string | Account holder name as registered with the bank | **Required**<br/>Min 3, Max 200 chars |
+
+### Example Request (cURL)
+```bash
+curl --location 'https://api.wepay.com.sa/apps/api/contracts/CNT-2604-00100002/refund' \
+  --header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "reason": "Order cancelled by buyer; goods never shipped.",
+    "buyerIban": "SA0380000000608010167519",
+    "buyerName": "Ahmad Ali"
+  }'
+```
+
+### Example Response
+```json
+{
+    "data": {
+        "refundId": 4521,
+        "amount": 1000.00,
+        "externalContractId": "CNT-2604-00100002"
+    },
+    "message": "ContractFullRefundInitiatedSuccessfully",
+    "status": 200,
+    "validationErrors": []
+}
+```
+
+### Response Fields
+
+`Result<FullRefundContractResponse>`
+
+| Field | Type | Description |
+|---|---|---|
+| refundId | integer | Internal WePay refund identifier — use it to correlate with subsequent `refund.full-succeeded` webhooks |
+| amount | number | Amount that will be returned to the buyer (the contract base amount) |
+| externalContractId | string | The external contract id |
+
+After this call returns `200`, the contract status transitions to `RefundInProgress`. A `refund.full-initiated` webhook is fired immediately, and a `refund.full-succeeded` webhook follows once the refund settles with the bank (status becomes `Refunded`).
+
+### HTTP Status Codes
+
+| Status | Description |
+|---|---|
+| 200 | Refund initiated successfully |
+| 400 | Validation failed, contract not in a refundable status, or another active refund already exists for this contract |
+| 401 | Unauthorized |
+| 403 | The caller is not authorized to refund this contract |
+| 404 | Contract not found |
+
+---
+
+## Partial Refund — Contract
+
+Refunds **part** of the escrowed contract principal to the buyer. The remaining portion is released to the seller (net of the proportional fees that apply to the released amount).
+
+### Endpoint
+
+`POST /apps/api/contracts/{externalContractId}/partial-refund`
+
+**Path parameters**
+
+| Field | Type | Description | Required / Notes / Example |
+|---|---|---|---|
+| externalContractId | string | The external contract identifier | **Required**<br/>Example: `CNT-2604-00100002` |
+
+### Request Body
+```json
+{
+    "refundAmount": 250.00,
+    "reason": "Damaged item; partial credit agreed with seller.",
+    "buyerIban": "SA0380000000608010167519",
+    "buyerName": "Ahmad Ali"
+}
+```
+
+### Field Descriptions
+
+| Field Name | Type | Description | Required / Notes / Example |
+|---|---|---|---|
+| refundAmount | number | Amount to refund to the buyer | **Required**<br/>Must be `> 0` and **strictly less than** the contract base amount |
+| reason | string | Mandatory reason | **Required**<br/>Max 500 chars |
+| buyerIban | string | Buyer's Saudi IBAN | **Required**<br/>Format: `SA` + 22 digits |
+| buyerName | string | Account holder name | **Required**<br/>Min 3, Max 200 chars |
+
+### Example Request (cURL)
+```bash
+curl --location 'https://api.wepay.com.sa/apps/api/contracts/CNT-2604-00100002/partial-refund' \
+  --header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "refundAmount": 250.00,
+    "reason": "Damaged item; partial credit agreed with seller.",
+    "buyerIban": "SA0380000000608010167519",
+    "buyerName": "Ahmad Ali"
+  }'
+```
+
+### Example Response
+```json
+{
+    "data": {
+        "refundId": 4522,
+        "settlementId": 7811,
+        "refundedAmount": 250.00,
+        "releasedToSellerAmount": 712.50,
+        "externalContractId": "CNT-2604-00100002"
+    },
+    "message": "ContractPartialRefundInitiatedSuccessfully",
+    "status": 200,
+    "validationErrors": []
+}
+```
+
+### Response Fields
+
+`Result<PartialRefundContractResponse>`
+
+| Field | Type | Description |
+|---|---|---|
+| refundId | integer | Internal WePay refund identifier |
+| settlementId | integer | Identifier of the settlement that releases the seller portion |
+| refundedAmount | number | Amount returned to the buyer |
+| releasedToSellerAmount | number | Net amount released to the seller after deducting the proportional fees due on the released amount |
+| externalContractId | string | The external contract id |
+
+After this call returns `200`, the contract status transitions to `PartialRefundInProgress`. A `refund.partial-initiated` webhook is fired immediately, and a `refund.partial-succeeded` webhook follows once both legs (refund + seller settlement) are completed (status becomes `PartiallyRefunded`).
+
+### HTTP Status Codes
+
+| Status | Description |
+|---|---|
+| 200 | Partial refund initiated successfully |
+| 400 | Validation failed, refund amount is `<= 0` or `>=` contract amount, contract not refundable, or another active partial refund already exists |
+| 401 | Unauthorized |
+| 403 | The caller is not authorized to refund this contract |
+| 404 | Contract not found |
+
+---
+
+## Full Refund — Milestone
+
+Refunds the **entire** escrowed amount of a single milestone to the buyer.
+
+### Endpoint
+
+`POST /apps/api/contracts/{externalContractId}/milestones/{milestoneId}/refund`
+
+**Path parameters**
+
+| Field | Type | Description | Required / Notes / Example |
+|---|---|---|---|
+| externalContractId | string | The external contract identifier | **Required**<br/>Example: `CNT-2604-00100002` |
+| milestoneId | integer | The milestone identifier (as returned in the contract create / get response) | **Required**<br/>Must be `> 0` |
+
+### Request Body
+```json
+{
+    "reason": "Milestone deliverable rejected; refund agreed.",
+    "buyerIban": "SA0380000000608010167519",
+    "buyerName": "Ahmad Ali"
+}
+```
+
+### Field Descriptions
+
+| Field Name | Type | Description | Required / Notes / Example |
+|---|---|---|---|
+| reason | string | Mandatory reason | **Required**<br/>Max 500 chars |
+| buyerIban | string | Buyer's Saudi IBAN | **Required**<br/>Format: `SA` + 22 digits |
+| buyerName | string | Account holder name | **Required**<br/>Min 3, Max 200 chars |
+
+### Example Request (cURL)
+```bash
+curl --location 'https://api.wepay.com.sa/apps/api/contracts/CNT-2604-00100002/milestones/13/refund' \
+  --header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "reason": "Milestone deliverable rejected; refund agreed.",
+    "buyerIban": "SA0380000000608010167519",
+    "buyerName": "Ahmad Ali"
+  }'
+```
+
+### Example Response
+```json
+{
+    "data": {
+        "refundId": 4523,
+        "milestoneId": 13,
+        "amount": 400.00,
+        "externalContractId": "CNT-2604-00100002"
+    },
+    "message": "MilestoneFullRefundInitiatedSuccessfully",
+    "status": 200,
+    "validationErrors": []
+}
+```
+
+### Response Fields
+
+`Result<FullRefundMilestoneResponse>`
+
+| Field | Type | Description |
+|---|---|---|
+| refundId | integer | Internal WePay refund identifier |
+| milestoneId | integer | The milestone that was refunded |
+| amount | number | Milestone base amount returned to the buyer |
+| externalContractId | string | The external contract id |
+
+After this call returns `200`, the milestone status transitions to `RefundInProgress` and the contract status to `RefundInProgress`. A `refund.full-initiated` webhook is fired immediately; on success the milestone moves to `Refunded` and a `refund.full-succeeded` webhook is delivered.
+
+### HTTP Status Codes
+
+| Status | Description |
+|---|---|
+| 200 | Refund initiated successfully |
+| 400 | Validation failed, milestone not in `Escrow` status, or another active refund already exists for this milestone |
+| 401 | Unauthorized |
+| 403 | Not authorized to refund this contract |
+| 404 | Contract or milestone not found |
+
+---
+
+## Partial Refund — Milestone
+
+Refunds **part** of a milestone's escrowed amount to the buyer; the remainder is released to the seller (net of proportional fees).
+
+### Endpoint
+
+`POST /apps/api/contracts/{externalContractId}/milestones/{milestoneId}/partial-refund`
+
+**Path parameters**
+
+| Field | Type | Description | Required / Notes / Example |
+|---|---|---|---|
+| externalContractId | string | The external contract identifier | **Required**<br/>Example: `CNT-2604-00100002` |
+| milestoneId | integer | The milestone identifier | **Required**<br/>Must be `> 0` |
+
+### Request Body
+```json
+{
+    "refundAmount": 100.00,
+    "reason": "Partial defect on milestone deliverable.",
+    "buyerIban": "SA0380000000608010167519",
+    "buyerName": "Ahmad Ali"
+}
+```
+
+### Field Descriptions
+
+| Field Name | Type | Description | Required / Notes / Example |
+|---|---|---|---|
+| refundAmount | number | Amount to refund to the buyer | **Required**<br/>Must be `> 0` and **strictly less than** the milestone base amount |
+| reason | string | Mandatory reason | **Required**<br/>Max 500 chars |
+| buyerIban | string | Buyer's Saudi IBAN | **Required**<br/>Format: `SA` + 22 digits |
+| buyerName | string | Account holder name | **Required**<br/>Min 3, Max 200 chars |
+
+### Example Request (cURL)
+```bash
+curl --location 'https://api.wepay.com.sa/apps/api/contracts/CNT-2604-00100002/milestones/13/partial-refund' \
+  --header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "refundAmount": 100.00,
+    "reason": "Partial defect on milestone deliverable.",
+    "buyerIban": "SA0380000000608010167519",
+    "buyerName": "Ahmad Ali"
+  }'
+```
+
+### Example Response
+```json
+{
+    "data": {
+        "refundId": 4524,
+        "settlementId": 7812,
+        "milestoneId": 13,
+        "refundedAmount": 100.00,
+        "releasedToSellerAmount": 285.00,
+        "externalContractId": "CNT-2604-00100002"
+    },
+    "message": "MilestonePartialRefundInitiatedSuccessfully",
+    "status": 200,
+    "validationErrors": []
+}
+```
+
+### Response Fields
+
+`Result<PartialRefundMilestoneResponse>`
+
+| Field | Type | Description |
+|---|---|---|
+| refundId | integer | Internal WePay refund identifier |
+| settlementId | integer | Identifier of the seller settlement created for the released portion |
+| milestoneId | integer | The milestone that was partially refunded |
+| refundedAmount | number | Amount returned to the buyer |
+| releasedToSellerAmount | number | Net amount released to the seller after the proportional fees |
+| externalContractId | string | The external contract id |
+
+After this call returns `200`, the milestone status transitions to `PartialRefundInProgress` and the contract to `PartialRefundInProgress`. A `refund.partial-initiated` webhook is fired immediately; on success the milestone moves to `PartiallyRefunded` and a `refund.partial-succeeded` webhook is delivered.
+
+### HTTP Status Codes
+
+| Status | Description |
+|---|---|
+| 200 | Partial refund initiated successfully |
+| 400 | Validation failed, refund amount is `<= 0` or `>=` milestone amount, milestone not in `Escrow`, or another active partial refund already exists |
+| 401 | Unauthorized |
+| 403 | Not authorized to refund this contract |
+| 404 | Contract or milestone not found |
+
+---
+
 # Get User Onboarding Status
 `GET apps/api/user/onboarding`
 
@@ -1145,6 +1525,25 @@ curl --location 'https://api.wepay.com.sa/apps/api/user/onboarding?phoneNumber=9
 | 13 | Refunded | Full refund has been processed. |
 | 14 | PartiallyRefunded | A partial refund has been processed. |
 | 15 | Terminated | Contract forcibly terminated (end-of-life). |
+| 16 | RefundInProgress | A full refund has been initiated and is being executed. |
+| 17 | PartialRefundInProgress | A partial refund has been initiated and is being executed. |
+
+## MilestoneStatus
+
+| Value | Name | Description |
+|---:|---|---|
+| 0 | Pending | Milestone created but not yet funded. |
+| 1 | Escrow | Milestone funds are held in escrow. |
+| 2 | Released | Milestone funds have been released to the seller. |
+| 3 | Refunded | Milestone has been fully refunded. |
+| 4 | Cancelled | Milestone cancelled before completion. |
+| 5 | PartiallyRefunded | Milestone has been partially refunded. |
+| 6 | Rejected | Milestone was rejected. |
+| 7 | Terminated | Milestone forcibly terminated. |
+| 8 | Settled | Milestone settlement to seller has cleared. |
+| 9 | WaitingForBankPayment | Awaiting an external bank payment to arrive. |
+| 10 | RefundInProgress | A full milestone refund has been initiated and is being executed. |
+| 11 | PartialRefundInProgress | A partial milestone refund has been initiated and is being executed. |
 
 ## ContractServiceType
 
