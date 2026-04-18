@@ -29,8 +29,8 @@ WePay sends webhooks for the following events:
 | contract.refunded | Contract has been refunded to the buyer (legacy combined event — emitted on the `Refunded` status transition) |
 | refund.full-initiated | A full refund (contract or milestone) has been initiated; the contract enters `RefundInProgress` |
 | refund.full-succeeded | A full refund has settled with the bank; the contract / milestone is now `Refunded` |
-| refund.partial-initiated | A partial refund (contract or milestone) has been initiated; the contract enters `PartialRefundInProgress` |
-| refund.partial-succeeded | A partial refund has settled; the contract / milestone is now `PartiallyRefunded` |
+| refund.partial-initiated | A partial refund (contract or milestone) has been initiated; the contract enters `RefundInProgress` |
+| refund.partial-succeeded | A partial refund has settled; the contract / milestone is now `Refunded` |
 | contract.completed | Contract has been fully completed |
 | webhook.test | Test webhook (sent via /webhooks/test endpoint) |
 
@@ -501,7 +501,7 @@ For **milestone-level** refunds, the milestone identifier is included under `dat
   "data": {
     "contractId": "CNT-2604-00100002",
     "reference": "your-reference-123",
-    "status": "PartialRefundInProgress",
+    "status": "RefundInProgress",
     "previousStatus": "Escrow",
     "amount": 250.00,
     "currency": "SAR",
@@ -525,8 +525,8 @@ For **milestone-level** refunds, the milestone identifier is included under `dat
   "data": {
     "contractId": "CNT-2604-00100002",
     "reference": "your-reference-123",
-    "status": "PartiallyRefunded",
-    "previousStatus": "PartialRefundInProgress",
+    "status": "Refunded",
+    "previousStatus": "RefundInProgress",
     "amount": 250.00,
     "currency": "SAR",
     "transactionId": "4522",
