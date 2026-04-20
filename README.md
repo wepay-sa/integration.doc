@@ -5,14 +5,15 @@
 This section is for developers integrating WePay Escrow Payment Services into their applications.
 
 ## Version
-current version: v1.3.0 <br/>
-last updated date: 09/04/2026
+current version: v1.4.0 <br/>
+last updated date: 18/04/2026
 
 ## Change Log
 
 
 | Version        | What to Include              |
 | -------------- | ---------------------------- |
+| Minor (v1.4.0) | Unified Refund API: single endpoint for full/partial refund at contract and milestone level; consolidated statuses (RefundInProgress/Refunded); refund webhook events; buyer IBAN auto-resolved from verified record (`buyerIban` / `buyerName` dropped from request), with buyer authorization & bank-verification pre-flight and onboarding SMS fallback |
 | Minor (v1.3.0) | KYC integration			 |
 | Minor (v1.2.0) | Add milestone to contract APIs |
 | Minor (v1.1.0) | Webhook notifications support |
@@ -1085,6 +1086,12 @@ curl --location 'https://api.wepay.com.sa/apps/api/user' \
 }
 ```
 
+# Refund Contract Funds
+
+For full refund API documentation, see [Refund API Reference](refund.md).
+
+---
+
 # Get User Onboarding Status
 `GET apps/api/user/onboarding`
 
@@ -1142,9 +1149,24 @@ curl --location 'https://api.wepay.com.sa/apps/api/user/onboarding?phoneNumber=9
 | 10 | Escrow | Funds are held in escrow for the contract. |
 | 11 | Dispute | A dispute has been raised on the contract. |
 | 12 | Released | Escrowed funds have been released. |
-| 13 | Refunded | Full refund has been processed. |
-| 14 | PartiallyRefunded | A partial refund has been processed. |
+| 13 | Refunded | Refund (full or partial) has been processed. |
 | 15 | Terminated | Contract forcibly terminated (end-of-life). |
+| 16 | RefundInProgress | A refund (full or partial) has been initiated and is being executed. |
+
+## MilestoneStatus
+
+| Value | Name | Description |
+|---:|---|---|
+| 0 | Pending | Milestone created but not yet funded. |
+| 1 | Escrow | Milestone funds are held in escrow. |
+| 2 | Released | Milestone funds have been released to the seller. |
+| 3 | Refunded | Milestone has been refunded (full or partial). |
+| 4 | Cancelled | Milestone cancelled before completion. |
+| 6 | Rejected | Milestone was rejected. |
+| 7 | Terminated | Milestone forcibly terminated. |
+| 8 | Settled | Milestone settlement to seller has cleared. |
+| 9 | WaitingForBankPayment | Awaiting an external bank payment to arrive. |
+| 10 | RefundInProgress | A milestone refund (full or partial) has been initiated and is being executed. |
 
 ## ContractServiceType
 

@@ -26,7 +26,11 @@ WePay sends webhooks for the following events:
 | contract.received | Buyer confirmed receipt of delivery |
 | contract.released | Funds have been released to the seller |
 | contract.disputed | A dispute has been raised on the contract |
-| contract.refunded | Contract has been refunded to the buyer |
+| contract.refunded | Contract has been refunded to the buyer (legacy combined event — emitted on the `Refunded` status transition) |
+| refund.full-initiated | A full refund (contract or milestone) has been initiated; the contract enters `RefundInProgress` |
+| refund.full-succeeded | A full refund has settled with the bank; the contract / milestone is now `Refunded` |
+| refund.partial-initiated | A partial refund (contract or milestone) has been initiated; the contract enters `RefundInProgress` |
+| refund.partial-succeeded | A partial refund has settled; the contract / milestone is now `Refunded` |
 | contract.completed | Contract has been fully completed |
 | webhook.test | Test webhook (sent via /webhooks/test endpoint) |
 
@@ -434,6 +438,127 @@ All webhooks are sent as HTTP POST requests with JSON body.
 | data.metadata | Your metadata from contract creation (metadata1-4, reference) |
 
 > **Note:** Some fields like `paymentId`, `transactionId`, and `invoiceId` are only present for relevant events (e.g., `payment.completed`).
+
+---
+
+## Refund Event Payloads
+
+Refund operations fire **two webhooks** for each refund: an `*-initiated` event when the request is accepted, and a `*-succeeded` event when funds have settled with the bank. Use `data.transactionId` (which carries the WePay refund identifier) to correlate the two.
+
+For **milestone-level** refunds, the milestone identifier is included under `data.metadata.milestoneId`.
+
+### `refund.full-initiated`
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "event": "refund.full-initiated",
+  "createdAt": "2026-04-14T14:30:00Z",
+  "data": {
+    "contractId": "CNT-2604-00100002",
+    "reference": "your-reference-123",
+    "status": "RefundInProgress",
+    "previousStatus": "Escrow",
+    "amount": 1000.00,
+    "currency": "SAR",
+    "transactionId": "4521",
+    "timestamp": "2026-04-14T14:30:00Z",
+    "metadata": {
+      "metadata1": "your-custom-data-1",
+      "reference": "your-reference-123"
+    }
+  }
+}
+```
+
+### `refund.full-succeeded`
+```json
+{
+  "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+  "event": "refund.full-succeeded",
+  "createdAt": "2026-04-14T15:05:00Z",
+  "data": {
+    "contractId": "CNT-2604-00100002",
+    "reference": "your-reference-123",
+    "status": "Refunded",
+    "previousStatus": "RefundInProgress",
+    "amount": 1000.00,
+    "currency": "SAR",
+    "transactionId": "4521",
+    "timestamp": "2026-04-14T15:05:00Z",
+    "metadata": {
+      "reference": "your-reference-123"
+    }
+  }
+}
+```
+
+### `refund.partial-initiated`
+```json
+{
+  "id": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+  "event": "refund.partial-initiated",
+  "createdAt": "2026-04-14T14:32:00Z",
+  "data": {
+    "contractId": "CNT-2604-00100002",
+    "reference": "your-reference-123",
+    "status": "RefundInProgress",
+    "previousStatus": "Escrow",
+    "amount": 250.00,
+    "currency": "SAR",
+    "transactionId": "4522",
+    "timestamp": "2026-04-14T14:32:00Z",
+    "metadata": {
+      "reference": "your-reference-123"
+    }
+  }
+}
+```
+
+> `data.amount` on partial refund events is the **buyer refund** amount, not the seller release portion.
+
+### `refund.partial-succeeded`
+```json
+{
+  "id": "d4e5f6a7-b8c9-0123-def0-456789012345",
+  "event": "refund.partial-succeeded",
+  "createdAt": "2026-04-14T15:10:00Z",
+  "data": {
+    "contractId": "CNT-2604-00100002",
+    "reference": "your-reference-123",
+    "status": "Refunded",
+    "previousStatus": "RefundInProgress",
+    "amount": 250.00,
+    "currency": "SAR",
+    "transactionId": "4522",
+    "timestamp": "2026-04-14T15:10:00Z",
+    "metadata": {
+      "reference": "your-reference-123"
+    }
+  }
+}
+```
+
+### Milestone-level refunds — additional metadata
+
+For the milestone variants of refund (`POST /apps/api/contracts/{externalContractId}/milestones/{milestoneId}/refund` and `…/partial-refund`), the same four event types are used. The affected milestone is identified by `data.metadata.milestoneId`:
+
+```json
+{
+  "event": "refund.full-initiated",
+  "data": {
+    "contractId": "CNT-2604-00100002",
+    "status": "RefundInProgress",
+    "previousStatus": "Escrow",
+    "amount": 400.00,
+    "currency": "SAR",
+    "transactionId": "4523",
+    "metadata": {
+      "milestoneId": "13",
+      "reference": "your-reference-123"
+    }
+  }
+}
+```
 
 ---
 
