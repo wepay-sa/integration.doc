@@ -28,10 +28,29 @@ All refund operations (full / partial, contract / milestone scope) are handled b
 | milestoneId | integer | When provided, the refund targets a specific milestone instead of the whole contract | Optional |
 | amount | number | Amount to refund to the buyer | **Required** when `type = "PARTIAL"`<br/>Must **not** be provided when `type = "FULL"`<br/>Must be `> 0` and strictly less than the base amount<br/>Max 2 decimal places |
 | reason | string | Mandatory reason for the refund (kept for audit trail) | **Required**<br/>Max 500 chars |
-| buyerIban | string | Buyer's Saudi IBAN that will receive the refunded amount | **Required**<br/>Format: `SA` + 22 digits<br/>Max 50 chars |
-| buyerName | string | Account holder name as registered with the bank | **Required**<br/>Min 3, Max 200 chars |
 
-> **Note:** `buyerIban` must be a valid Saudi IBAN (`SA` followed by 22 digits). The `buyerName` is the account holder name as registered with the bank -- it is verified against the IBAN by the banking provider.
+> **Note:** The buyer's IBAN and account holder name are **not** part of the request. WePay resolves them automatically from the verified buyer record (see [Buyer Eligibility & IBAN Resolution](#buyer-eligibility--iban-resolution) below).
+
+---
+
+## Buyer Eligibility & IBAN Resolution
+
+Before any refund is created, WePay runs a pre-flight check against the buyer's onboarding record:
+
+1. **Authorization** -- the buyer must have completed the WePay authorization step. If not, the refund is rejected and an onboarding link is sent to the buyer by SMS so they can self-serve.
+2. **Bank account verification** -- when the platform is configured to require a verified IBAN for the buyer (`OnboardingRequirement = KycWithIban`), the buyer must have a bank account that has been verified with the banking provider. If not, the refund is rejected and an onboarding SMS is sent.
+3. **IBAN resolution** -- once eligibility passes, WePay looks up the buyer IBAN and account holder name from the verified record and writes them onto the refund.
+
+SMS dispatch to the buyer is best-effort; SMS delivery failure does **not** change the HTTP response you receive.
+
+Failure responses are structured so you can react programmatically:
+
+| Condition | HTTP | Message key |
+|---|---|---|
+| Buyer has not completed authorization | `400` | `BuyerNotAuthorized` |
+| Buyer's bank account is not verified | `400` | `BuyerBankAccountNotVerified` |
+| Buyer record not found for this business | `404` | `ExternalUserNotFound` |
+| IBAN could not be resolved from the verified record | `500` | `FailedToResolveIban` |
 
 ---
 
@@ -58,9 +77,7 @@ curl --location 'https://api.wepay.com.sa/apps/api/contracts/CNT-2604-00100002/r
   --header 'Content-Type: application/json' \
   --data '{
     "type": "FULL",
-    "reason": "Order cancelled by buyer; goods never shipped.",
-    "buyerIban": "SA0380000000608010167519",
-    "buyerName": "Ahmad Ali"
+    "reason": "Order cancelled by buyer; goods never shipped."
   }'
 ```
 
@@ -96,9 +113,7 @@ curl --location 'https://api.wepay.com.sa/apps/api/contracts/CNT-2604-00100002/r
   --data '{
     "type": "PARTIAL",
     "amount": 250.00,
-    "reason": "Damaged item; partial credit agreed with seller.",
-    "buyerIban": "SA0380000000608010167519",
-    "buyerName": "Ahmad Ali"
+    "reason": "Damaged item; partial credit agreed with seller."
   }'
 ```
 
@@ -134,9 +149,7 @@ curl --location 'https://api.wepay.com.sa/apps/api/contracts/CNT-2604-00100002/r
   --data '{
     "type": "FULL",
     "milestoneId": 13,
-    "reason": "Milestone deliverable rejected; refund agreed.",
-    "buyerIban": "SA0380000000608010167519",
-    "buyerName": "Ahmad Ali"
+    "reason": "Milestone deliverable rejected; refund agreed."
   }'
 ```
 
@@ -173,9 +186,7 @@ curl --location 'https://api.wepay.com.sa/apps/api/contracts/CNT-2604-00100002/r
     "type": "PARTIAL",
     "milestoneId": 13,
     "amount": 100.00,
-    "reason": "Partial defect on milestone deliverable.",
-    "buyerIban": "SA0380000000608010167519",
-    "buyerName": "Ahmad Ali"
+    "reason": "Partial defect on milestone deliverable."
   }'
 ```
 
@@ -234,8 +245,9 @@ A webhook is fired both when the refund is **initiated** and when it **succeeds*
 | Status | Description |
 |---|---|
 | 200 | Refund initiated successfully |
-| 400 | Validation failed, contract/milestone not in a refundable status, refund amount invalid, or another active refund already exists |
+| 400 | Validation failed, contract/milestone not in a refundable status, refund amount invalid, another active refund already exists, **buyer has not completed authorization** (`BuyerNotAuthorized`), or **buyer's bank account is not verified** (`BuyerBankAccountNotVerified`) -- in the last two cases an onboarding SMS is sent to the buyer |
 | 401 | Unauthorized |
 | 403 | The caller is not authorized to refund this contract |
-| 404 | Contract or milestone not found |
+| 404 | Contract, milestone, or buyer record not found (`ExternalUserNotFound`) |
 | 409 | Concurrent refund race condition detected (retry with a fresh check) |
+| 500 | Buyer IBAN could not be resolved from the verified record (`FailedToResolveIban`) -- treat as a transient data issue and contact WePay support if it persists |

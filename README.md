@@ -13,7 +13,7 @@ last updated date: 18/04/2026
 
 | Version        | What to Include              |
 | -------------- | ---------------------------- |
-| Minor (v1.4.0) | Unified Refund API: single endpoint for full/partial refund at contract and milestone level; consolidated statuses (RefundInProgress/Refunded); refund webhook events |
+| Minor (v1.4.0) | Unified Refund API: single endpoint for full/partial refund at contract and milestone level; consolidated statuses (RefundInProgress/Refunded); refund webhook events; buyer IBAN auto-resolved from verified record (`buyerIban` / `buyerName` dropped from request), with buyer authorization & bank-verification pre-flight and onboarding SMS fallback |
 | Minor (v1.3.0) | KYC integration			 |
 | Minor (v1.2.0) | Add milestone to contract APIs |
 | Minor (v1.1.0) | Webhook notifications support |
