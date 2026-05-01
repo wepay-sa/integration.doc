@@ -2,21 +2,23 @@
 
 ## Overview
 
-Webhooks allow you to receive real-time notifications about contract events. Instead of polling the API for updates, WePay will send HTTP POST requests to your specified endpoint whenever important events occur.
+Webhooks allow you to receive real-time notifications about contract events. Instead of polling the API for updates, WePay sends HTTP POST requests to your configured endpoint whenever important events occur.
 
 **Key Benefits:**
 
-- **Real-time Updates**: Get notified immediately when events occur
-- **Reduced API Calls**: No need to poll for status changes
-- **Reliable Delivery**: Automatic retries with exponential backoff
-- **Secure**: HMAC-SHA256 signature verification
+- **Real-time Updates**: Get notified immediately when events occur.
+- **Reduced API Calls**: No need to poll for status changes.
+- **Reliable Delivery**: Automatic retries with exponential backoff.
+- **Secure**: HMAC-SHA256 signature verification.
+
+---
 
 ## Webhook Event Types
 
 WePay sends webhooks for the following events:
 
 | Event Type | Description |
-| --- | --- |
+|---|---|
 | contract.created | A new contract has been created |
 | contract.approved | Contract has been approved by the other party |
 | contract.rejected | Contract has been rejected |
@@ -26,27 +28,33 @@ WePay sends webhooks for the following events:
 | contract.received | Buyer confirmed receipt of delivery |
 | contract.released | Funds have been released to the seller |
 | contract.disputed | A dispute has been raised on the contract |
-| contract.refunded | Contract has been refunded to the buyer |
+| contract.refunded | Contract has been refunded to the buyer. Legacy combined event emitted on the `Refunded` status transition |
+| refund.full-initiated | A full refund, contract or milestone, has been initiated. The contract enters `RefundInProgress` |
+| refund.full-succeeded | A full refund has settled with the bank. The contract or milestone is now `Refunded` |
+| refund.partial-initiated | A partial refund, contract or milestone, has been initiated. The contract enters `RefundInProgress` |
+| refund.partial-succeeded | A partial refund has settled. The contract or milestone is now `Refunded` |
 | contract.completed | Contract has been fully completed |
-| webhook.test | Test webhook (sent via /webhooks/test endpoint) |
+| webhook.test | Test webhook sent from `/webhooks/test` endpoint |
 
 ---
 
 ## Configure Webhook Subscription
 
-Before receiving webhooks, you need to register your webhook URL.
+Before receiving webhooks, register your webhook URL.
 
 ### Endpoint
 
 `POST /apps/api/webhooks`
 
-**Headers:**
-```
+### Headers
+
+```http
 Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
 ### Request Body
+
 ```json
 {
   "webhookUrl": "https://yourdomain.com/webhooks/wepay"
@@ -55,13 +63,14 @@ Content-Type: application/json
 
 ### Field Descriptions
 
-| Field | Type | Required? | Description |
-| --- | --- | --- | --- |
-| webhookUrl | String | Yes | Your HTTPS endpoint URL to receive webhook notifications. Must be publicly accessible. Example: `https://api.yoursite.com/webhooks` |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| webhookUrl | string | Yes | Public HTTPS endpoint URL that receives webhook notifications. Example: `https://api.yoursite.com/webhooks/wepay` |
 
-### Example Request (cURL)
+### Example Request
+
 ```bash
-curl -X POST "https://api.wepay.com.sa/apps/api/webhooks" \
+curl -X POST "{baseUrl}/apps/api/webhooks" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -70,6 +79,7 @@ curl -X POST "https://api.wepay.com.sa/apps/api/webhooks" \
 ```
 
 ### Example Response
+
 ```json
 {
   "data": {
@@ -91,40 +101,43 @@ curl -X POST "https://api.wepay.com.sa/apps/api/webhooks" \
 ### Response Fields
 
 | Field | Description |
-| --- | --- |
-| id | Your business entity ID (used as webhook subscription identifier) |
-| webhookUrl | Your registered webhook endpoint |
-| secretKey | Secret key for signature verification (**Save this securely**) |
-| isActive | Whether the webhook is currently active (false if disabled due to failures) |
-| consecutiveFailures | Number of consecutive delivery failures (resets to 0 on success) |
+|---|---|
+| id | Business entity ID used as webhook subscription identifier |
+| webhookUrl | Registered webhook endpoint |
+| secretKey | Secret key for signature verification. Save it securely |
+| isActive | Whether the webhook subscription is active |
+| consecutiveFailures | Number of consecutive delivery failures. Resets on success |
 | lastSuccessAt | Timestamp of last successful delivery |
 | lastFailureAt | Timestamp of last failed delivery |
-| createdAt | When the business entity was created |
+| createdAt | Creation timestamp |
 
-> **Important:** Save the `secretKey` securely. You'll need it to verify webhook signatures. The secret is only shown once when creating or regenerating. Never expose your secret key in client-side code.
+> **Important:** Save the `secretKey` securely. You need it to verify webhook signatures. The secret is only shown when creating or regenerating it. Never expose it in client-side code.
 
 ---
 
 ## Get Webhook Subscription
 
-Retrieve your current webhook configuration.
+Retrieve current webhook configuration.
 
 ### Endpoint
 
 `GET /apps/api/webhooks`
 
-**Headers:**
-```
+### Headers
+
+```http
 Authorization: Bearer {access_token}
 ```
 
-### Example Request (cURL)
+### Example Request
+
 ```bash
-curl -X GET "https://api.wepay.com.sa/apps/api/webhooks" \
+curl -X GET "{baseUrl}/apps/api/webhooks" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### Example Response
+
 ```json
 {
   "data": {
@@ -147,28 +160,31 @@ curl -X GET "https://api.wepay.com.sa/apps/api/webhooks" \
 
 ## Update Webhook URL
 
-Update your existing webhook subscription with a new URL.
+Update the existing webhook subscription with a new URL.
 
 ### Endpoint
 
 `POST /apps/api/webhooks`
 
-**Headers:**
-```
+### Headers
+
+```http
 Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
 ### Request Body
+
 ```json
 {
   "webhookUrl": "https://newdomain.com/webhooks/wepay"
 }
 ```
 
-### Example Request (cURL)
+### Example Request
+
 ```bash
-curl -X POST "https://api.wepay.com.sa/apps/api/webhooks" \
+curl -X POST "{baseUrl}/apps/api/webhooks" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -177,6 +193,7 @@ curl -X POST "https://api.wepay.com.sa/apps/api/webhooks" \
 ```
 
 ### Example Response
+
 ```json
 {
   "data": {
@@ -201,24 +218,27 @@ curl -X POST "https://api.wepay.com.sa/apps/api/webhooks" \
 
 ## Regenerate Secret Key
 
-If your secret key is compromised, regenerate it immediately.
+Regenerate the secret key immediately if it is compromised.
 
 ### Endpoint
 
 `POST /apps/api/webhooks/regenerate-secret`
 
-**Headers:**
-```
+### Headers
+
+```http
 Authorization: Bearer {access_token}
 ```
 
-### Example Request (cURL)
+### Example Request
+
 ```bash
-curl -X POST "https://api.wepay.com.sa/apps/api/webhooks/regenerate-secret" \
+curl -X POST "{baseUrl}/apps/api/webhooks/regenerate-secret" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### Example Response
+
 ```json
 {
   "data": {
@@ -230,30 +250,33 @@ curl -X POST "https://api.wepay.com.sa/apps/api/webhooks/regenerate-secret" \
 }
 ```
 
-> **Important:** After regenerating, update your server immediately to use the new secret key. Webhooks signed with the old key will fail verification.
+> **Important:** After regenerating, update your server immediately to use the new secret. Webhooks signed with the old key will fail verification.
 
 ---
 
 ## Test Webhook
 
-Send a test webhook to verify your endpoint is working correctly.
+Send a test webhook to verify your endpoint.
 
 ### Endpoint
 
 `POST /apps/api/webhooks/test`
 
-**Headers:**
-```
+### Headers
+
+```http
 Authorization: Bearer {access_token}
 ```
 
-### Example Request (cURL)
+### Example Request
+
 ```bash
-curl -X POST "https://api.wepay.com.sa/apps/api/webhooks/test" \
+curl -X POST "{baseUrl}/apps/api/webhooks/test" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### Example Response
+
 ```json
 {
   "data": {
@@ -266,37 +289,40 @@ curl -X POST "https://api.wepay.com.sa/apps/api/webhooks/test" \
 }
 ```
 
-Your endpoint will receive a test webhook with event type `webhook.test`. This is a special event type used only for testing and will not be triggered by actual contract operations.
+Your endpoint receives a test webhook with event type `webhook.test`.
 
 ---
 
 ## View Delivery Logs
 
-View the history of webhook delivery attempts.
+View webhook delivery attempts.
 
 ### Endpoint
 
 `GET /apps/api/webhooks/logs?page=1&pageSize=20`
 
-**Headers:**
-```
+### Headers
+
+```http
 Authorization: Bearer {access_token}
 ```
 
 ### Query Parameters
 
 | Parameter | Type | Default | Description |
-| --- | --- | --- | --- |
-| page | Integer | 1 | Page number for pagination |
-| pageSize | Integer | 20 | Number of records per page (max 100) |
+|---|---|---:|---|
+| page | integer | 1 | Page number |
+| pageSize | integer | 20 | Number of records per page. Max 100 |
 
-### Example Request (cURL)
+### Example Request
+
 ```bash
-curl -X GET "https://api.wepay.com.sa/apps/api/webhooks/logs?page=1&pageSize=20" \
+curl -X GET "{baseUrl}/apps/api/webhooks/logs?page=1&pageSize=20" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### Example Response
+
 ```json
 {
   "data": {
@@ -327,17 +353,17 @@ curl -X GET "https://api.wepay.com.sa/apps/api/webhooks/logs?page=1&pageSize=20"
 ### Log Fields
 
 | Field | Description |
-| --- | --- |
-| id | Unique log entry identifier (UUID format) |
-| eventType | Type of event that was sent |
-| externalContractId | External contract ID (e.g., "CNT-2601-00100068") |
-| contractId | Internal contract ID (integer) |
-| httpStatusCode | HTTP status code returned by your endpoint (null if connection failed) |
-| isSuccess | Whether delivery was successful (2xx response) |
-| attemptNumber | Which attempt this was (1 = first attempt, up to 6 with retries) |
-| errorMessage | Error message if delivery failed (null on success) |
-| durationMs | How long the request took in milliseconds |
-| createdAt | When the delivery attempt was made |
+|---|---|
+| id | Unique log entry identifier |
+| eventType | Event type sent |
+| externalContractId | External contract ID |
+| contractId | Internal contract ID |
+| httpStatusCode | HTTP status returned by your endpoint |
+| isSuccess | Whether delivery was successful |
+| attemptNumber | Delivery attempt number |
+| errorMessage | Error message if delivery failed |
+| durationMs | Request duration in milliseconds |
+| createdAt | Delivery attempt timestamp |
 
 ---
 
@@ -349,18 +375,21 @@ Remove your webhook subscription to stop receiving notifications.
 
 `DELETE /apps/api/webhooks`
 
-**Headers:**
-```
+### Headers
+
+```http
 Authorization: Bearer {access_token}
 ```
 
-### Example Request (cURL)
+### Example Request
+
 ```bash
-curl -X DELETE "https://api.wepay.com.sa/apps/api/webhooks" \
+curl -X DELETE "{baseUrl}/apps/api/webhooks" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### Example Response
+
 ```json
 {
   "data": true,
@@ -379,14 +408,15 @@ All webhooks are sent as HTTP POST requests with JSON body.
 ### Headers Sent with Each Webhook
 
 | Header | Description |
-| --- | --- |
-| Content-Type | application/json |
+|---|---|
+| Content-Type | `application/json` |
 | X-WePay-Signature | HMAC-SHA256 signature for verification |
-| X-WePay-Event | The event type (e.g., "payment.completed") |
+| X-WePay-Event | Event type, for example `payment.completed` |
 | X-WePay-Webhook-Id | Unique identifier for this webhook delivery |
 | X-WePay-Timestamp | ISO 8601 timestamp when webhook was created |
 
 ### Webhook Payload Structure
+
 ```json
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -417,42 +447,193 @@ All webhooks are sent as HTTP POST requests with JSON body.
 ### Payload Field Descriptions
 
 | Field | Description |
-| --- | --- |
+|---|---|
 | id | Unique webhook delivery ID |
-| event | Event type that triggered this webhook |
-| createdAt | When the webhook was created |
-| data.contractId | External contract ID (e.g., "CNT-2601-00100068") |
-| data.reference | Your reference from contract creation (if provided) |
+| event | Event type that triggered the webhook |
+| createdAt | Webhook creation timestamp |
+| data.contractId | External contract ID |
+| data.reference | Your reference from contract creation, if provided |
 | data.status | Current contract status |
 | data.previousStatus | Previous contract status |
-| data.amount | Contract amount in SAR |
-| data.currency | Currency code (always "SAR") |
-| data.paymentId | Payment ID (for payment events) |
-| data.transactionId | Transaction ID (for payment events) |
-| data.invoiceId | Invoice ID (for payment events) |
+| data.amount | Event amount in SAR |
+| data.currency | Currency code. Always `SAR` |
+| data.paymentId | Payment ID for payment events |
+| data.transactionId | Transaction ID for payment events, or refund ID for refund events |
+| data.invoiceId | Invoice ID for payment events |
 | data.timestamp | Event timestamp |
-| data.metadata | Your metadata from contract creation (metadata1-4, reference) |
+| data.metadata | Metadata from contract creation and event-specific metadata |
 
-> **Note:** Some fields like `paymentId`, `transactionId`, and `invoiceId` are only present for relevant events (e.g., `payment.completed`).
+> **Note:** Some fields like `paymentId`, `transactionId`, and `invoiceId` are only present for relevant events.
+
+---
+
+## Refund Event Payloads
+
+Refund operations fire two webhooks for each refund:
+
+1. An `*-initiated` event when the refund request is accepted.
+2. An `*-succeeded` event when the refund has settled with the bank.
+
+Use `data.transactionId`, which carries the WePay refund identifier, to correlate initiated and succeeded events.
+
+For milestone-level refunds, the affected milestone is identified using `data.metadata.milestoneId`.
+
+---
+
+### `refund.full-initiated`
+
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "event": "refund.full-initiated",
+  "createdAt": "2026-04-14T14:30:00Z",
+  "data": {
+    "contractId": "CNT-2604-00100002",
+    "reference": "your-reference-123",
+    "status": "RefundInProgress",
+    "previousStatus": "Escrow",
+    "amount": 1000.00,
+    "currency": "SAR",
+    "transactionId": "4521",
+    "timestamp": "2026-04-14T14:30:00Z",
+    "metadata": {
+      "metadata1": "your-custom-data-1",
+      "reference": "your-reference-123"
+    }
+  }
+}
+```
+
+---
+
+### `refund.full-succeeded`
+
+```json
+{
+  "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+  "event": "refund.full-succeeded",
+  "createdAt": "2026-04-14T15:05:00Z",
+  "data": {
+    "contractId": "CNT-2604-00100002",
+    "reference": "your-reference-123",
+    "status": "Refunded",
+    "previousStatus": "RefundInProgress",
+    "amount": 1000.00,
+    "currency": "SAR",
+    "transactionId": "4521",
+    "timestamp": "2026-04-14T15:05:00Z",
+    "metadata": {
+      "reference": "your-reference-123"
+    }
+  }
+}
+```
+
+---
+
+### `refund.partial-initiated`
+
+```json
+{
+  "id": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+  "event": "refund.partial-initiated",
+  "createdAt": "2026-04-14T14:32:00Z",
+  "data": {
+    "contractId": "CNT-2604-00100002",
+    "reference": "your-reference-123",
+    "status": "RefundInProgress",
+    "previousStatus": "Escrow",
+    "amount": 250.00,
+    "currency": "SAR",
+    "transactionId": "4522",
+    "timestamp": "2026-04-14T14:32:00Z",
+    "metadata": {
+      "reference": "your-reference-123"
+    }
+  }
+}
+```
+
+> `data.amount` on partial refund events is the buyer refund amount, not the seller release amount.
+
+---
+
+### `refund.partial-succeeded`
+
+```json
+{
+  "id": "d4e5f6a7-b8c9-0123-def0-456789012345",
+  "event": "refund.partial-succeeded",
+  "createdAt": "2026-04-14T15:10:00Z",
+  "data": {
+    "contractId": "CNT-2604-00100002",
+    "reference": "your-reference-123",
+    "status": "Refunded",
+    "previousStatus": "RefundInProgress",
+    "amount": 250.00,
+    "currency": "SAR",
+    "transactionId": "4522",
+    "timestamp": "2026-04-14T15:10:00Z",
+    "metadata": {
+      "reference": "your-reference-123"
+    }
+  }
+}
+```
+
+---
+
+### Milestone-level Refund Metadata
+
+Milestone-level refunds use the same refund event types as contract-level refunds.
+
+The affected milestone is identified by `data.metadata.milestoneId`.
+
+```json
+{
+  "event": "refund.full-initiated",
+  "data": {
+    "contractId": "CNT-2604-00100002",
+    "status": "RefundInProgress",
+    "previousStatus": "Escrow",
+    "amount": 400.00,
+    "currency": "SAR",
+    "transactionId": "4523",
+    "metadata": {
+      "milestoneId": "13",
+      "reference": "your-reference-123"
+    }
+  }
+}
+```
+
+> **Important:** Refund API usage is documented in `README.md`. This file only documents webhook configuration, delivery, verification, and payloads.
 
 ---
 
 ## Verifying Webhook Signatures
 
-To ensure webhooks are genuinely from WePay, verify the signature.
+Verify the webhook signature before processing any webhook.
 
 ### Signature Format
 
-The `X-WePay-Signature` header contains: `sha256={hex_signature}`
+`X-WePay-Signature` contains:
+
+```txt
+sha256={hex_signature}
+```
 
 ### Verification Process
 
-1. Extract the signature from `X-WePay-Signature` header
-2. Get the raw JSON body of the request
-3. Compute HMAC-SHA256 of the body using your secret key
-4. Compare your computed signature with the received signature
+1. Extract the signature from `X-WePay-Signature`.
+2. Read the raw JSON request body.
+3. Compute HMAC-SHA256 using your webhook secret key.
+4. Compare the computed signature with the received signature using constant-time comparison.
 
-### Example Implementation (Node.js)
+---
+
+### Node.js Example
+
 ```javascript
 const crypto = require('crypto');
 
@@ -468,7 +649,6 @@ function verifyWebhookSignature(payload, signature, secretKey) {
   );
 }
 
-// In your webhook handler:
 app.post('/webhooks/wepay', (req, res) => {
   const signature = req.headers['x-wepay-signature'];
   const payload = JSON.stringify(req.body);
@@ -477,25 +657,28 @@ app.post('/webhooks/wepay', (req, res) => {
     return res.status(401).send('Invalid signature');
   }
 
-  // Process the webhook
   const event = req.body;
-  console.log('Received event:', event.event);
 
-  switch(event.event) {
+  switch (event.event) {
     case 'payment.completed':
-      // Handle payment completed
       break;
     case 'contract.released':
-      // Handle contract released
+      break;
+    case 'refund.full-initiated':
+    case 'refund.full-succeeded':
+    case 'refund.partial-initiated':
+    case 'refund.partial-succeeded':
       break;
   }
 
-  // Always respond with 200 OK quickly
   res.status(200).send('OK');
 });
 ```
 
-### Example Implementation (PHP)
+---
+
+### PHP Example
+
 ```php
 <?php
 function verifyWebhookSignature($payload, $signature, $secretKey) {
@@ -503,7 +686,6 @@ function verifyWebhookSignature($payload, $signature, $secretKey) {
     return hash_equals($expectedSignature, $signature);
 }
 
-// In your webhook handler:
 $payload = file_get_contents('php://input');
 $signature = $_SERVER['HTTP_X_WEPAY_SIGNATURE'] ?? '';
 
@@ -514,12 +696,15 @@ if (!verifyWebhookSignature($payload, $signature, YOUR_SECRET_KEY)) {
 
 $event = json_decode($payload, true);
 
-switch($event['event']) {
+switch ($event['event']) {
     case 'payment.completed':
-        // Handle payment completed
         break;
     case 'contract.released':
-        // Handle contract released
+        break;
+    case 'refund.full-initiated':
+    case 'refund.full-succeeded':
+    case 'refund.partial-initiated':
+    case 'refund.partial-succeeded':
         break;
 }
 
@@ -528,7 +713,10 @@ echo 'OK';
 ?>
 ```
 
-### Example Implementation (Python)
+---
+
+### Python Example
+
 ```python
 import hmac
 import hashlib
@@ -556,19 +744,28 @@ def webhook_handler():
     event = request.get_json()
 
     if event['event'] == 'payment.completed':
-        # Handle payment completed
         pass
     elif event['event'] == 'contract.released':
-        # Handle contract released
+        pass
+    elif event['event'] in [
+        'refund.full-initiated',
+        'refund.full-succeeded',
+        'refund.partial-initiated',
+        'refund.partial-succeeded'
+    ]:
         pass
 
     return 'OK', 200
 ```
 
-### Example Implementation (C#)
+---
+
+### C# Example
+
 ```csharp
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 public class WebhookController : ControllerBase
 {
@@ -579,6 +776,7 @@ public class WebhookController : ControllerBase
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_secretKey));
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
         var expectedSignature = "sha256=" + Convert.ToHexString(hash).ToLowerInvariant();
+
         return CryptographicOperations.FixedTimeEquals(
             Encoding.UTF8.GetBytes(signature),
             Encoding.UTF8.GetBytes(expectedSignature)
@@ -589,6 +787,7 @@ public class WebhookController : ControllerBase
     public async Task<IActionResult> HandleWebhook()
     {
         var signature = Request.Headers["X-WePay-Signature"].ToString();
+
         using var reader = new StreamReader(Request.Body);
         var payload = await reader.ReadToEndAsync();
 
@@ -599,13 +798,16 @@ public class WebhookController : ControllerBase
 
         var webhookEvent = JsonSerializer.Deserialize<WebhookEvent>(payload);
 
-        switch (webhookEvent.Event)
+        switch (webhookEvent?.Event)
         {
             case "payment.completed":
-                // Handle payment completed
                 break;
             case "contract.released":
-                // Handle contract released
+                break;
+            case "refund.full-initiated":
+            case "refund.full-succeeded":
+            case "refund.partial-initiated":
+            case "refund.partial-succeeded":
                 break;
         }
 
@@ -620,17 +822,17 @@ public class WebhookController : ControllerBase
 
 ## Retry Policy
 
-If your endpoint fails to respond with a 2xx status code, WePay will retry delivery with exponential backoff:
+If your endpoint does not respond with a 2xx status code, WePay retries delivery with exponential backoff.
 
 | Attempt | Delay |
-| --- | --- |
+|---|---|
 | 1st retry | 10 seconds |
 | 2nd retry | 30 seconds |
 | 3rd retry | 2 minutes |
 | 4th retry | 10 minutes |
 | 5th retry | 1 hour |
 
-After 5 failed retries, the webhook delivery is marked as failed.
+After 5 failed retries, delivery is marked as failed.
 
 ### Retryable Status Codes
 
@@ -646,7 +848,6 @@ These status codes will trigger retries:
 ### Non-Retryable Status Codes
 
 These status codes will NOT trigger retries (considered permanent failures):
-
 - 400 Bad Request
 - 401 Unauthorized
 - 403 Forbidden
@@ -655,9 +856,8 @@ These status codes will NOT trigger retries (considered permanent failures):
 ### Auto-Disable Policy
 
 After **10 consecutive failed deliveries**, your webhook subscription will be automatically disabled to prevent unnecessary retries. To re-enable:
-
-1. Fix your endpoint issues
-2. Update the webhook URL via `POST /apps/api/webhooks`
+1. Fix your endpoint issue.
+2. Update the webhook URL using `POST /apps/api/webhooks`.
 
 ---
 
@@ -665,38 +865,38 @@ After **10 consecutive failed deliveries**, your webhook subscription will be au
 
 ### 1. Respond Quickly
 
-- Return `200 OK` as soon as you receive the webhook
-- Process the event asynchronously if needed
-- Timeout is 30 seconds - respond faster to avoid retries
+- Return `200 OK` as soon as you receive the webhook.
+- Process the event asynchronously if needed.
+- Timeout is 30 seconds. Respond faster to avoid retries.
 
 ### 2. Handle Duplicates
 
-- Webhooks may be delivered more than once
-- Use the webhook ID (`X-WePay-Webhook-Id`) to deduplicate
-- Make your processing idempotent
+- Webhooks may be delivered more than once.
+- Use `X-WePay-Webhook-Id` to deduplicate.
+- Make processing idempotent.
 
 ### 3. Verify Signatures
 
-- Always verify `X-WePay-Signature` before processing
-- Reject unsigned or incorrectly signed requests
-- Use constant-time comparison functions
+- Always verify `X-WePay-Signature` before processing.
+- Reject unsigned or incorrectly signed requests.
+- Use constant-time comparison.
 
 ### 4. Use HTTPS
 
-- Your webhook URL must use HTTPS in production
-- Ensure your SSL certificate is valid and not expired
+- Production webhook URLs must use HTTPS.
+- Keep SSL certificates valid and renewed.
 
 ### 5. Log Everything
 
-- Log all received webhooks for debugging
-- Log signature verification results
-- Keep logs for troubleshooting failed deliveries
+- Log received webhooks.
+- Log signature verification results.
+- Keep logs for troubleshooting failed deliveries.
 
 ### 6. Monitor Your Endpoint
 
-- Check delivery logs regularly via `/apps/api/webhooks/logs`
-- Set up alerts for consecutive failures
-- Test your endpoint periodically using `/apps/api/webhooks/test`
+- Check delivery logs through `/apps/api/webhooks/logs`.
+- Set alerts for consecutive failures.
+- Test periodically using `/apps/api/webhooks/test`.
 
 ---
 
@@ -705,12 +905,13 @@ After **10 consecutive failed deliveries**, your webhook subscription will be au
 ### Webhook Configuration Errors
 
 | Error | Solution |
-| --- | --- |
-| 400 Invalid URL | Ensure URL is valid and uses http:// or https:// |
-| 401 Unauthorized | Check your access token is valid and not expired |
-| 404 Not Found | No webhook subscription exists - create one first |
+|---|---|
+| 400 Invalid URL | Ensure URL is valid and uses HTTP or HTTPS |
+| 401 Unauthorized | Check access token validity |
+| 404 Not Found | Create webhook subscription first |
 
 ### Example Error Response
+
 ```json
 {
   "message": "Invalid webhook URL",
@@ -782,3 +983,4 @@ After **10 consecutive failed deliveries**, your webhook subscription will be au
 ### Q: What happens if my server is down when a webhook is sent?
 
 **A:** WePay will retry delivery up to 5 times with exponential backoff (10s, 30s, 2min, 10min, 1hr). If all retries fail, check your delivery logs when your server is back up.
+
